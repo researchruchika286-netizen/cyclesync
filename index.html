@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CycleSync — Menstrual Health Companion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:'Inter',-apple-system,sans-serif;background:#FEFAF6;color:#1A0E14;-webkit-font-smoothing:antialiased}
+::selection{background:#F8E8DE;color:#7C2D43}
+input[type=range]{-webkit-appearance:none;appearance:none;height:4px;border-radius:4px;background:#E8D8D0;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#7C2D43;cursor:pointer;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+input,select,textarea{font-family:'Inter',sans-serif}
+button{font-family:'Inter',sans-serif;cursor:pointer}
+iframe{display:block}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:#f1f1f1}
+::-webkit-scrollbar-thumb{background:#E8D8D0;border-radius:3px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const{useState,useEffect,useMemo}=React;
+
+/* ---- tokens ---- */
+const T={rose:'#7C2D43',roseDark:'#5C1D30',roseMid:'#A8425A',rosePale:'#F8E8DE',roseLight:'#FDF5F2',cream:'#FEFAF6',gold:'#C98E4F',goldLight:'#F5E9D5',sage:'#8FA15C',sageLight:'#EFF5E4',purple:'#6E5A9C',purpleLight:'#F0EDF9',ink:'#1A0E14',inkMid:'#4A3040',inkLight:'#8A7080',border:'#E8D8D0',white:'#FFFFFF',shadow:'rgba(124,45,67,0.08)',shadowMd:'rgba(124,45,67,0.14)'};
+
+/* ---- helpers ---- */
+function todayISO(){return new Date().toISOString().slice(0,10)}
+function addDays(iso,n){const d=new Date(iso+'T00:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)}
+function daysBetween(d1,d2){return Math.floor((d2-d1)/86400000)}
+function fmtDate(iso){return new Date(iso+'T00:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}
+function calcBMI(w,h){const wn=parseFloat(w),hn=parseFloat(h);if(!wn||!hn)return null;return +((wn/((hn/100)**2)).toFixed(1))}
+function bmiCat(b){if(!b)return'—';if(b<18.5)return'Underweight';if(b<25)return'Normal';if(b<30)return'Overweight';return'Obese'}
+function calcWHR(w,h){const wn=parseFloat(w),hn=parseFloat(h);if(!wn||!hn)return null;return +((wn/hn).toFixed(2))}
+function whrCat(r){if(!r)return'—';if(r<0.8)return'Low Risk';if(r<=0.85)return'Moderate Risk';return'High Risk'}
+
+const PHASE_META={
+  menstrual:{label:'Menstrual',tagline:'Rest & restore',color:'#A8425A'},
+  follicular:{label:'Follicular',tagline:'Rise & build',color:'#C98E4F'},
+  ovulatory:{label:'Ovulatory',tagline:'Peak energy',color:'#8FA15C'},
+  luteal:{label:'Luteal',tagline:'Slow & ground',color:'#6E5A9C'},
+};
+
+function phaseBounds(len){const l=len||28,ov=Math.round(l/2),me=Math.min(7,Math.max(3,Math.round(l*.18))),fe=Math.max(me+1,ov-2),oe=Math.min(l-1,ov+2);return{len:l,me,fe,oe}}
+function phaseForDay(day,len){const{me,fe,oe}=phaseBounds(len);if(day<=me)return'menstrual';if(day<=fe)return'follicular';if(day<=oe)return'ovulatory';return'luteal'}
+function getCycleInfo(last,len,dateISO){if(!last)return{day:null,phase:null};const l=len||28,diff=daysBetween(new Date(last+'T00:00:00'),new Date((dateISO||todayISO())+'T00:00:00')),day=((diff%l)+l)%l+1,phase=phaseForDay(day,l);return{day,phase,...phaseBounds(l)}}
+
+/* ---- local storage ---- */
+function useLS(key,init){
+  const[state,set]=useState(()=>{try{const s=localStorage.getItem(key);return s?JSON.parse(s):init}catch{return init}});
+  useEffect(()=>{try{localStorage.setItem(key,JSON.stringify(state))}catch{}},[key,state]);
+  return[state,set];
+}
+
+/* ---- shared UI ---- */
+const Card=({children,style={}})=>(
+  <div style={{background:T.white,border:`1px solid ${T.border}`,borderRadius:16,padding:'24px 28px',boxShadow:`0 2px 14px ${T.shadow}`,...style}}>{children}</div>
+);
+const Badge=({label,color=T.rose,bg=T.rosePale})=>(
+  <span style={{display:'inline-block',padding:'3px 10px',borderRadius:20,fontSize:11,fontWeight:600,letterSpacing:'0.06em',textTransform:'uppercase',color,background:bg}}>{label}</span>
+);
+const Btn=({children,onClick,style={},variant='primary',disabled=false})=>{
+  const base={padding:'12px 24px',border:'none',borderRadius:12,fontWeight:700,fontSize:14,cursor:disabled?'default':'pointer',transition:'all 0.2s',...style};
+  const styles={primary:{...base,background:T.rose,color:T.white},outline:{...base,background:'none',border:`1.5px solid ${T.border}`,color:T.inkMid},sage:{...base,background:T.sageLight,color:T.sage,border:`1px solid ${T.sage}40`}};
+  return<button onClick={onClick} disabled={disabled} style={styles[variant]||base}>{children}</button>;
+};
+const Input=({label,value,onChange,type='text',placeholder,min,max})=>(
+  <div style={{marginBottom:20}}>
+    <label style={{display:'block',fontSize:12,fontWeight:600,color:T.inkLight,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:6}}>{label}</label>
+    <input type={type} value={value} onChange={onChange} placeholder={placeholder} min={min} max={max}
+      style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${T.border}`,borderRadius:10,fontSize:15,color:T.ink,background:T.cream,outline:'none',boxSizing:'border-box'}}
+      onFocus={e=>e.target.style.borderColor=T.rose} onBlur={e=>e.target.style.borderColor=T.border}/>
+  </div>
+);
+const BackBtn=({onClick})=>(
+  <button onClick={onClick} style={{display:'inline-flex',alignItems:'center',gap:6,background:'none',border:`1px solid ${T.border}`,borderRadius:10,padding:'8px 16px',cursor:'pointer',color:T.inkMid,fontSize:13,fontWeight:500,marginBottom:28}}>← Back</button>
+);
+const SectionHead=({title,subtitle,accent=T.rose})=>(
+  <div style={{marginBottom:32}}>
+    <div style={{width:36,height:3,background:accent,borderRadius:2,marginBottom:12}}/>
+    <h2 style={{fontFamily:'Playfair Display,serif',fontSize:30,fontWeight:700,color:T.ink,margin:0}}>{title}</h2>
+    {subtitle&&<p style={{color:T.inkLight,marginTop:6,fontSize:15,margin:'6px 0 0'}}>{subtitle}</p>}
+  </div>
+);
+
+/* ---- NAV ---- */
+const NAV=[{k:'home',l:'Home',i:'🏠'},{k:'tracker',l:'Tracker',i:'📅'},{k:'recipes',l:'Recipes',i:'🥗'},{k:'mealprep',l:'Meal Plan',i:'📋'},{k:'yoga',l:'Yoga',i:'🧘'},{k:'ayurveda',l:'Ayurveda',i:'🌿'},{k:'disorders',l:'Wellness',i:'💙'}];
+
+function Navbar({page,setPage,profile}){
+  const{phase}=getCycleInfo(profile.lastPeriod,+profile.cycleLength);
+  const[open,setOpen]=useState(false);
+  return(
+    <nav style={{position:'sticky',top:0,zIndex:100,background:'rgba(254,250,246,0.95)',backdropFilter:'blur(12px)',borderBottom:`1px solid ${T.border}`,padding:'0 16px'}}>
+      <div style={{maxWidth:1100,margin:'0 auto',display:'flex',alignItems:'center',height:62,gap:8}}>
+        <button onClick={()=>setPage('home')} style={{background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',gap:8,marginRight:16,flexShrink:0}}>
+          <div style={{width:32,height:32,borderRadius:'50%',background:T.rose,display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <span style={{color:'white',fontSize:16}}>🌸</span>
+          </div>
+          <span style={{fontFamily:'Playfair Display,serif',fontWeight:700,fontSize:18,color:T.rose}}>CycleSync</span>
+        </button>
+        <div style={{display:'flex',gap:2,flex:1,overflowX:'auto',paddingBottom:2}}>
+          {NAV.map(n=>(
+            <button key={n.k} onClick={()=>setPage(n.k)} style={{background:page===n.k?T.rosePale:'none',border:page===n.k?`1px solid ${T.border}`:'1px solid transparent',borderRadius:10,padding:'6px 12px',cursor:'pointer',color:page===n.k?T.rose:T.inkMid,fontSize:12,fontWeight:page===n.k?600:500,whiteSpace:'nowrap'}}>
+              {n.i} {n.l}
+            </button>
+          ))}
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+          {phase&&<div style={{background:PHASE_META[phase].color+'18',border:`1px solid ${PHASE_META[phase].color}40`,borderRadius:20,padding:'4px 10px',color:PHASE_META[phase].color,fontSize:11,fontWeight:600}}>{PHASE_META[phase].label}</div>}
+          <button onClick={()=>setPage('settings')} style={{width:34,height:34,borderRadius:'50%',background:T.border,border:'none',cursor:'pointer',fontSize:15}}>⚙️</button>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+/* ---- HOME ---- */
+function HomePage({profile,logs,setPage}){
+  const today=todayISO();
+  const{day,phase,len}=getCycleInfo(profile.lastPeriod,+profile.cycleLength,today);
+  const todayLog=logs[today]||{};
+  const bmi=calcBMI(profile.weight,profile.height);
+  const whr=calcWHR(profile.waist,profile.hip);
+  const phaseGuide={
+    menstrual:{body:'Hormones at lowest. Rest is productive.',food:'Iron-rich warm foods — dal, soups, khichdi.',move:'Restorative yoga, gentle walks.',mind:'Journalling & intention setting.'},
+    follicular:{body:'Oestrogen rises. Energy and clarity build.',food:'Light protein — quinoa, yogurt, sprouts.',move:'Strength training, new classes.',mind:'Planning and starting new projects.'},
+    ovulatory:{body:'Peak oestrogen. Highest energy & confidence.',food:'Anti-inflammatory — salmon, leafy greens.',move:'HIIT, dancing, heavy lifting.',mind:'Networking, presenting, collaborating.'},
+    luteal:{body:'Progesterone rises. Body slows naturally.',food:'Complex carbs & magnesium — sweet potato, dark chocolate.',move:'Pilates, moderate yoga, walks.',mind:'Completing tasks, self-care rituals.'},
+  };
+  return(
+    <div>
+      <div style={{background:`linear-gradient(135deg,${T.rose} 0%,${T.roseDark} 60%,#3D0F20 100%)`,padding:'52px 24px 44px',textAlign:'center',position:'relative',overflow:'hidden'}}>
+        <div style={{position:'absolute',top:-60,right:-60,width:200,height:200,borderRadius:'50%',background:'rgba(255,255,255,0.04)'}}/>
+        <div style={{position:'relative',maxWidth:680,margin:'0 auto'}}>
+          <p style={{color:'rgba(255,255,255,0.5)',fontSize:11,letterSpacing:'0.2em',textTransform:'uppercase',margin:'0 0 10px'}}>{new Date(today+'T00:00:00').toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</p>
+          <h1 style={{fontFamily:'Playfair Display,serif',fontSize:'clamp(26px,5vw,42px)',fontWeight:800,color:'white',margin:'0 0 14px',lineHeight:1.15}}>{profile.name?`Good day, ${profile.name}`:'Welcome to CycleSync'}</h1>
+          {phase?(
+            <div>
+              <div style={{display:'inline-flex',alignItems:'center',gap:10,background:'rgba(255,255,255,0.12)',borderRadius:30,padding:'10px 24px',marginBottom:16}}>
+                <span style={{fontFamily:'Playfair Display,serif',fontSize:18,color:'white',fontWeight:600}}>Cycle Day {day}</span>
+                <span style={{color:'rgba(255,255,255,0.4)'}}>·</span>
+                <span style={{color:T.rosePale,fontWeight:600,fontSize:14}}>{PHASE_META[phase].label} Phase</span>
+              </div>
+              <p style={{color:'rgba(255,255,255,0.7)',fontSize:15,margin:0}}>{PHASE_META[phase].tagline}</p>
+            </div>
+          ):(
+            <div>
+              <p style={{color:'rgba(255,255,255,0.7)',fontSize:15}}>Set up your profile to begin tracking.</p>
+              <button onClick={()=>setPage('settings')} style={{background:'white',color:T.rose,border:'none',borderRadius:12,padding:'12px 28px',fontWeight:700,cursor:'pointer',fontSize:14}}>Set up Profile →</button>
+            </div>
+          )}
+        </div>
+      </div>
+      <div style={{maxWidth:1100,margin:'0 auto',padding:'32px 20px'}}>
+        {(bmi||whr||day)&&(
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:14,marginBottom:24}}>
+            {day&&<Card style={{textAlign:'center',padding:18}}><div style={{fontFamily:'Playfair Display,serif',fontSize:34,fontWeight:800,color:T.rose}}>{day}</div><div style={{fontSize:10,color:T.inkLight,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',marginTop:4}}>Cycle Day</div><div style={{fontSize:11,color:T.rose,fontWeight:600,marginTop:2}}>of {len||28}</div></Card>}
+            {bmi&&<Card style={{textAlign:'center',padding:18}}><div style={{fontFamily:'Playfair Display,serif',fontSize:34,fontWeight:800,color:T.sage}}>{bmi}</div><div style={{fontSize:10,color:T.inkLight,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',marginTop:4}}>BMI</div><div style={{fontSize:11,color:T.sage,fontWeight:600,marginTop:2}}>{bmiCat(bmi)}</div></Card>}
+            {whr&&<Card style={{textAlign:'center',padding:18}}><div style={{fontFamily:'Playfair Display,serif',fontSize:34,fontWeight:800,color:T.purple}}>{whr}</div><div style={{fontSize:10,color:T.inkLight,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',marginTop:4}}>WHR</div><div style={{fontSize:11,color:T.purple,fontWeight:600,marginTop:2}}>{whrCat(whr)}</div></Card>}
+            {todayLog.sleep&&<Card style={{textAlign:'center',padding:18}}><div style={{fontFamily:'Playfair Display,serif',fontSize:34,fontWeight:800,color:T.gold}}>{todayLog.sleep}</div><div style={{fontSize:10,color:T.inkLight,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',marginTop:4}}>Sleep hrs</div></Card>}
+          </div>
+        )}
+        {!profile.lastPeriod&&(
+          <Card style={{marginBottom:24,borderLeft:`4px solid ${T.gold}`,background:T.goldLight}}>
+            <p style={{margin:0,fontSize:14,color:T.inkMid}}>👋 <strong>Get started:</strong> Add your last period date in <button onClick={()=>setPage('settings')} style={{background:'none',border:'none',color:T.rose,fontWeight:700,cursor:'pointer',textDecoration:'underline',fontSize:14}}>Settings</button> to unlock personalised recommendations across all modules.</p>
+          </Card>
+        )}
+        <h3 style={{fontFamily:'Playfair Display,serif',fontSize:20,color:T.ink,marginBottom:16}}>Explore CycleSync</h3>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:14,marginBottom:28}}>
+          {[{k:'tracker',i:'📅',t:'Cycle Tracker',d:'Log period, sleep, mood & symptoms',c:T.rose},{k:'recipes',i:'🥗',t:'Recipe Generator',d:'Phase-personalised recipes by ingredient',c:T.gold},{k:'mealprep',i:'📋',t:'Meal Planner',d:'Weekly plan + shopping list',c:T.sage},{k:'yoga',i:'🧘',t:'Yoga & Movement',d:'Phase-specific routines with video guides',c:T.purple},{k:'ayurveda',i:'🌿',t:'Ayurveda',d:'Seed cycling, herbal teas & rituals',c:'#5A8A75'},{k:'disorders',i:'💙',t:'Wellness Guide',d:'PCOS, endometriosis, menopause & more',c:'#5572A8'}].map(m=>(
+            <button key={m.k} onClick={()=>setPage(m.k)} style={{textAlign:'left',background:T.white,border:`1px solid ${T.border}`,borderRadius:16,padding:18,cursor:'pointer',transition:'all 0.2s',boxShadow:`0 2px 10px ${T.shadow}`}}
+              onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=`0 6px 20px ${T.shadowMd}`}}
+              onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow=`0 2px 10px ${T.shadow}`}}>
+              <div style={{fontSize:26,marginBottom:8}}>{m.i}</div>
+              <div style={{fontWeight:700,fontSize:14,color:T.ink,marginBottom:4}}>{m.t}</div>
+              <div style={{fontSize:12,color:T.inkLight,lineHeight:1.4,marginBottom:10}}>{m.d}</div>
+              <div style={{fontSize:12,fontWeight:600,color:m.c}}>Explore →</div>
+            </button>
+          ))}
+        </div>
+        {phase&&(
+          <Card style={{background:PHASE_META[phase].color+'0C',border:`1px solid ${PHASE_META[phase].color}30`}}>
+            <h3 style={{fontFamily:'Playfair Display,serif',fontSize:20,color:PHASE_META[phase].color,margin:'0 0 16px'}}>Your {PHASE_META[phase].label} Phase Guide</h3>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12}}>
+              {[['🫀','Body',phaseGuide[phase].body],['🥣','Nutrition',phaseGuide[phase].food],['🏃','Movement',phaseGuide[phase].move],['🧠','Mindset',phaseGuide[phase].mind]].map(([icon,title,text])=>(
+                <div key={title} style={{background:'rgba(255,255,255,0.6)',borderRadius:12,padding:'14px 16px'}}>
+                  <div style={{fontSize:20,marginBottom:6}}>{icon}</div>
+                  <div style={{fontWeight:700,color:PHASE_META[phase].color,marginBottom:6,fontSize:12,textTransform:'uppercase',letterSpacing:'0.08em'}}>{title}</div>
+                  <div style={{fontSize:13,color:T.inkMid,lineHeight:1.5}}>{text}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---- TRACKER ---- */
+const FLOWS=['None','Spotting','Light','Medium','Heavy','Very Heavy'];
+const MOODS=['😊 Happy','😌 Calm','😐 Neutral','😔 Low','😤 Irritable','😢 Emotional','🥱 Exhausted','⚡ Energised'];
+const SYMPTOMS=['Cramps','Headache','Bloating','Breast tenderness','Acne','Backache','Nausea','Insomnia','Cravings','Brain fog','Hot flushes','Pelvic pain'];
+
+function TrackerPage({profile,logs,setLogs,setPage}){
+  const today=todayISO();
+  const[sel,setSel]=useState(today);
+  const ex=logs[sel]||{};
+  const[form,setForm]=useState({flow:ex.flow||'',sleep:ex.sleep||'',mood:ex.mood||'',symptoms:ex.symptoms||[],notes:ex.notes||''});
+  const[saved,setSaved]=useState(false);
+  useEffect(()=>{const e=logs[sel]||{};setForm({flow:e.flow||'',sleep:e.sleep||'',mood:e.mood||'',symptoms:e.symptoms||[],notes:e.notes||''});setSaved(false)},[sel]);
+  const{day,phase,len}=getCycleInfo(profile.lastPeriod,+profile.cycleLength,sel);
+  const cycleLen=+profile.cycleLength||28;
+  const calDays=Array.from({length:28},(_,i)=>{const iso=addDays(today,i-13);return{iso,...getCycleInfo(profile.lastPeriod,cycleLen,iso),log:logs[iso]}});
+  function toggleSym(s){setForm(f=>({...f,symptoms:f.symptoms.includes(s)?f.symptoms.filter(x=>x!==s):[...f.symptoms,s]}))}
+  function save(){setLogs(p=>({...p,[sel]:{...form,calories:p[sel]?.calories||0}}));setSaved(true);setTimeout(()=>setSaved(false),2000)}
+  return(
+    <div style={{maxWidth:900,margin:'0 auto',padding:'32px 20px'}}>
+      <BackBtn onClick={()=>setPage('home')}/>
+      <SectionHead title="Cycle Tracker" subtitle="Log your daily flow, mood, sleep and symptoms."/>
+      <Card style={{marginBottom:24,overflowX:'auto'}}>
+        <h3 style={{fontFamily:'Playfair Display,serif',fontSize:16,color:T.ink,margin:'0 0 14px'}}>28-Day Calendar</h3>
+        <div style={{display:'flex',gap:5,paddingBottom:6}}>
+          {calDays.map(cd=>{
+            const isSel=cd.iso===sel,isToday=cd.iso===today;
+            const pc=cd.phase?PHASE_META[cd.phase].color:T.border;
+            const hasLog=cd.log&&(cd.log.flow||cd.log.sleep);
+            return(
+              <button key={cd.iso} onClick={()=>setSel(cd.iso)} style={{flex:'0 0 auto',width:42,minHeight:54,borderRadius:10,border:isSel?`2px solid ${T.rose}`:`1.5px solid ${pc}40`,background:isSel?T.rosePale:pc+'14',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2}}>
+                <div style={{fontSize:9,color:T.inkLight,fontWeight:600}}>{new Date(cd.iso+'T00:00:00').toLocaleDateString(undefined,{weekday:'short'})}</div>
+                <div style={{fontSize:14,fontWeight:isToday?800:500,color:isSel?T.rose:T.ink}}>{new Date(cd.iso+'T00:00:00').getDate()}</div>
+                {hasLog&&<div style={{width:4,height:4,borderRadius:'50%',background:pc}}/>}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{display:'flex',gap:14,marginTop:10,flexWrap:'wrap'}}>
+          {Object.entries(PHASE_META).map(([k,v])=>(
+            <div key={k} style={{display:'flex',alignItems:'center',gap:4}}><div style={{width:8,height:8,borderRadius:'50%',background:v.color}}/><span style={{fontSize:10,color:T.inkLight}}>{v.label}</span></div>
+          ))}
+        </div>
+      </Card>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:18}}>
+        <Card>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:18}}>
+            <div><div style={{fontFamily:'Playfair Display,serif',fontSize:17,fontWeight:700,color:T.ink}}>{fmtDate(sel)}</div>
+            {phase&&<span style={{display:'inline-flex',alignItems:'center',gap:5,background:PHASE_META[phase].color+'18',border:`1.5px solid ${PHASE_META[phase].color}40`,borderRadius:20,padding:'4px 12px',color:PHASE_META[phase].color,fontWeight:700,fontSize:12,marginTop:4}}>{PHASE_META[phase].label}</span>}</div>
+            {day&&<div style={{fontFamily:'Playfair Display,serif',fontSize:26,fontWeight:800,color:T.rose}}>Day {day}</div>}
+          </div>
+          <div style={{marginBottom:18}}>
+            <label style={{display:'block',fontSize:11,fontWeight:600,color:T.inkLight,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:8}}>Period Flow</label>
+            <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
+              {FLOWS.map(f=><button key={f} onClick={()=>setForm(p=>({...p,flow:f}))} style={{padding:'5px 11px',borderRadius:20,fontSize:11,fontWeight:600,cursor:'pointer',background:form.flow===f?T.rose:T.rosePale,color:form.flow===f?'white':T.rose,border:form.flow===f?`1.5px solid ${T.rose}`:`1.5px solid ${T.border}`}}>{f}</button>)}
+            </div>
+          </div>
+          <Input label="Sleep (hours)" type="number" value={form.sleep} min="0" max="24" onChange={e=>setForm(f=>({...f,sleep:e.target.value}))} placeholder="e.g. 7.5"/>
+          <div style={{marginBottom:18}}>
+            <label style={{display:'block',fontSize:11,fontWeight:600,color:T.inkLight,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:8}}>Mood</label>
+            <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
+              {MOODS.map(m=><button key={m} onClick={()=>setForm(f=>({...f,mood:m}))} style={{padding:'5px 10px',borderRadius:20,fontSize:11,cursor:'pointer',background:form.mood===m?T.rose:T.roseLight,color:form.mood===m?'white':T.inkMid,border:form.mood===m?`1.5px solid ${T.rose}`:`1.5px solid ${T.border}`,fontWeight:form.mood===m?600:500}}>{m}</button>)}
+            </div>
+          </div>
+          <div style={{marginBottom:18}}>
+            <label style={{display:'block',fontSize:11,fontWeight:600,color:T.inkLight,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:6}}>Notes</label>
+            <textarea value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="How are you feeling?" rows={3} style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${T.border}`,borderRadius:10,fontSize:14,color:T.ink,background:T.cream,outline:'none',resize:'vertical',boxSizing:'border-box'}}/>
+          </div>
+          <button onClick={save} style={{width:'100%',padding:13,background:T.rose,color:'white',border:'none',borderRadius:12,fontWeight:700,fontSize:14,cursor:'pointer'}}>{saved?'✓ Saved!':'Save Log'}</button>
+        </Card>
+        <div style={{display:'flex',flexDirection:'column',gap:16}}>
+          <Card>
+            <h4 style={{fontFamily:'Playfair Display,serif',fontSize:15,color:T.ink,margin:'0 0 12px'}}>Symptoms</h4>
+            <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
+              {SYMPTOMS.map(s=><button key={s} onClick={()=>toggleSym(s)} style={{padding:'6px 11px',borderRadius:20,fontSize:11,cursor:'pointer',background:form.symptoms.includes(s)?T.roseMid:T.roseLight,color:form.symptoms.includes(s)?'white':T.inkMid,border:form.symptoms.includes(s)?`1.5px solid ${T.roseMid}`:`1.5px solid ${T.border}`,fontWeight:500}}>{s}</button>)}
+            </div>
+          </Card>
+          <Card>
+            <h4 style={{fontFamily:'Playfair Display,serif',fontSize:15,color:T.ink,margin:'0 0 8px'}}>Today's Calories</h4>
+            <div style={{fontFamily:'Playfair Display,serif',fontSize:36,fontWeight:800,color:T.sage}}>{(logs[sel]?.calories||0).toLocaleString()}</div>
+            <div style={{fontSize:11,color:T.inkLight,marginTop:4}}>kcal logged from recipes</div>
+            <button onClick={()=>setPage('recipes')} style={{marginTop:12,background:T.sageLight,border:'none',borderRadius:10,padding:'8px 16px',color:T.sage,fontWeight:600,fontSize:12,cursor:'pointer'}}>Generate a Recipe →</button>
+          </Card>
+          <Card>
+            <h4 style={{fontFamily:'Playfair Display,serif',fontSize:15,color:T.ink,margin:'0 0 12px'}}>Recent Logs</h4>
+            {Object.entries(logs).filter(([d])=>d<=today).sort(([a],[b])=>b.localeCompare(a)).slice(0,5).map(([date,log])=>{
+              const info=getCycleInfo(profile.lastPeriod,+profile.cycleLength,date);
+              return(
+                <button key={date} onClick={()=>setSel(date)} style={{width:'100%',textAlign:'left',background:date===sel?T.rosePale:'none',border:`1px solid ${T.border}`,borderRadius:10,padding:'9px 12px',cursor:'pointer',marginBottom:5}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <div style={{fontSize:12,fontWeight:600,color:T.ink}}>{fmtDate(date)}</div>
+                    {info.phase&&<span style={{fontSize:10,fontWeight:600,color:PHASE_META[info.phase].color}}>{PHASE_META[info.phase].label}</span>}
+                  </div>
+                  <div style={{fontSize:11,color:T.inkLight,marginTop:3}}>{[log.flow&&`Flow: ${log.flow}`,log.sleep&&`Sleep: ${log.sleep}h`,log.mood].filter(Boolean).join(' · ')}</div>
+                </button>
+              );
+            })}
+            {Object.keys(logs).length===0&&<p style={{fontSize:12,color:T.inkLight,textAlign:'center'}}>No logs yet — start logging above.</p>}
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---- RECIPES ---- */
+const RECIPES=[
+  {id:'r1',name:'Iron-Boost Beetroot & Spinach Poha',meal:'breakfast',phase:['menstrual'],time:15,cal:290,tags:['iron-rich','warming'],ing:['poha','beetroot','spinach','onion','mustard seeds','peanuts','lemon'],steps:['Rinse 1 cup poha and set aside.','Grate beetroot and chop spinach.','Heat oil, splutter mustard seeds, sauté onion.','Add beetroot and spinach, cook 4 min.','Fold in poha and peanuts, finish with lemon.'],why:'Beetroot and spinach replenish iron lost during your period.'},
+  {id:'r2',name:'Warm Cinnamon Oats with Banana',meal:'breakfast',phase:['menstrual'],time:10,cal:260,tags:['warming','magnesium-rich'],ing:['oats','banana','milk','cinnamon','honey','walnuts'],steps:['Simmer oats with milk 5 min.','Stir in cinnamon and mashed banana.','Top with walnuts and honey.'],why:'Banana and cinnamon ease cramps and stabilise blood sugar.'},
+  {id:'r3',name:'Golden Turmeric Quinoa Porridge',meal:'breakfast',phase:['follicular','any'],time:20,cal:310,tags:['anti-inflammatory','protein-rich'],ing:['quinoa','milk','turmeric','ginger','honey','almonds'],steps:['Simmer quinoa in milk with turmeric and ginger 15 min.','Stir until creamy.','Top with almonds and honey.'],why:'Protein-rich anti-inflammatory start for the follicular phase.'},
+  {id:'r4',name:'Avocado & Egg Power Toast',meal:'breakfast',phase:['ovulatory','any'],time:12,cal:340,tags:['protein-rich'],ing:['bread','avocado','eggs','chilli flakes','lemon','tomato'],steps:['Toast whole-grain bread.','Mash avocado with lemon and chilli.','Top with a fried egg and tomato.'],why:'Protein and healthy fats to match peak ovulatory energy.'},
+  {id:'r5',name:'Sweet Potato & Almond Butter Bowl',meal:'breakfast',phase:['luteal'],time:20,cal:320,tags:['magnesium-rich','warming'],ing:['sweet potato','almond butter','cinnamon','pumpkin seeds','honey'],steps:['Steam cubed sweet potato 15 min.','Mash with almond butter and cinnamon.','Top with pumpkin seeds and honey.'],why:'Magnesium and complex carbs ease luteal cravings.'},
+  {id:'r6',name:'Comforting Lentil & Spinach Dal',meal:'lunch',phase:['menstrual'],time:30,cal:420,tags:['iron-rich','protein-rich','warming'],ing:['red lentils','spinach','brown rice','ginger','garlic','turmeric','cumin','ghee'],steps:['Simmer lentils with turmeric until soft.','Sauté ginger, garlic, cumin in ghee; add to dal.','Stir in spinach, simmer 5 min.','Serve over brown rice.'],why:'Lentils and spinach restore iron and protein.'},
+  {id:'r7',name:'Quinoa Veggie Power Bowl',meal:'lunch',phase:['follicular','any'],time:25,cal:410,tags:['protein-rich','high-fiber'],ing:['quinoa','broccoli','chickpeas','carrot','tahini','lemon'],steps:['Cook quinoa.','Steam broccoli and carrot.','Combine with chickpeas, drizzle tahini-lemon dressing.'],why:'Balanced protein and fibre support rising oestrogen.'},
+  {id:'r8',name:'Mediterranean Salmon & Couscous',meal:'lunch',phase:['ovulatory','any'],time:25,cal:460,tags:['protein-rich','anti-inflammatory'],ing:['salmon','couscous','cucumber','tomato','olive oil','lemon','feta'],steps:['Pan-sear salmon 3-4 min per side.','Fluff couscous with hot water and olive oil.','Toss couscous with cucumber, tomato, feta; serve with salmon.'],why:'Omega-3 salmon supports anti-inflammatory needs of ovulation.'},
+  {id:'r9',name:'Sweet Potato Black Bean Bowl',meal:'lunch',phase:['luteal'],time:30,cal:430,tags:['magnesium-rich','high-fiber'],ing:['sweet potato','black beans','avocado','corn','lime','cumin'],steps:['Roast sweet potato with cumin 20 min.','Warm black beans and corn.','Combine, top with avocado and lime.'],why:'Complex carbs and magnesium curb luteal cravings.'},
+  {id:'r10',name:'Ginger Turmeric Vegetable Soup',meal:'dinner',phase:['menstrual'],time:25,cal:240,tags:['warming','anti-inflammatory'],ing:['carrot','pumpkin','ginger','turmeric','garlic','vegetable broth','coconut milk'],steps:['Sauté garlic and ginger, add carrot and pumpkin.','Simmer in broth 15 min.','Blend smooth, stir in coconut milk and turmeric.'],why:'Anti-inflammatory soup that soothes cramps.'},
+  {id:'r11',name:'Khichdi with Ghee',meal:'dinner',phase:['menstrual'],time:30,cal:350,tags:['warming','light'],ing:['rice','moong dal','ghee','cumin','turmeric','ginger'],steps:['Rinse equal parts rice and moong dal.','Pressure cook with turmeric and ginger.','Finish with ghee and cumin tempering.'],why:'Ayurvedic comfort food, gentle on digestion.'},
+  {id:'r12',name:'Stir-fried Veggies with Quinoa',meal:'dinner',phase:['follicular','any'],time:20,cal:360,tags:['high-fiber','protein-rich'],ing:['quinoa','zucchini','bell pepper','mushroom','garlic','soy sauce'],steps:['Cook quinoa.','Stir-fry vegetables with garlic on high heat.','Toss with quinoa and soy sauce.'],why:'Light and energising as your body builds toward ovulation.'},
+  {id:'r13',name:'Baked Salmon with Greens',meal:'dinner',phase:['ovulatory','any'],time:25,cal:420,tags:['protein-rich','anti-inflammatory'],ing:['salmon','spinach','kale','garlic','olive oil','lemon'],steps:['Bake salmon with olive oil, garlic and lemon 12-15 min.','Sauté spinach and kale with garlic.','Serve salmon over greens.'],why:'Omega-3s and leafy greens support hormone balance.'},
+  {id:'r14',name:'Comforting Red Lentil Stew',meal:'dinner',phase:['luteal'],time:30,cal:380,tags:['magnesium-rich','warming'],ing:['red lentils','sweet potato','coconut milk','ginger','cumin','spinach'],steps:['Sauté ginger and cumin, add lentils, sweet potato and coconut milk.','Simmer 20 min.','Stir in spinach before serving.'],why:'Magnesium-rich stew to soothe luteal tension.'},
+  {id:'r15',name:'Date, Almond & Flax Energy Balls',meal:'snack',phase:['any'],time:15,cal:150,tags:['magnesium-rich'],ing:['dates','almonds','flaxseed','cocoa powder','coconut'],steps:['Blend dates and almonds.','Mix in flaxseed and cocoa.','Roll into balls, coat in coconut.'],why:'Naturally sweet magnesium snack for any phase.'},
+  {id:'r16',name:'Dark Chocolate & Walnut Bites',meal:'snack',phase:['luteal'],time:10,cal:170,tags:['magnesium-rich'],ing:['dark chocolate','walnuts','sea salt'],steps:['Melt dark chocolate.','Stir in walnuts, spoon onto tray, sprinkle salt.','Chill 20 min.'],why:'Satisfies luteal cravings while delivering magnesium.'},
+  {id:'r17',name:'Honey-Roasted Pumpkin Seeds',meal:'snack',phase:['menstrual','follicular'],time:12,cal:140,tags:['iron-rich','magnesium-rich'],ing:['pumpkin seeds','honey','cinnamon','sea salt'],steps:['Toss seeds with honey, cinnamon and salt.','Roast at 180°C for 8-10 min.'],why:'Part of seed cycling — rich in iron, zinc and healthy fats.'},
+  {id:'r18',name:'Greek Yogurt Berry Parfait',meal:'snack',phase:['follicular','any'],time:8,cal:220,tags:['protein-rich','light'],ing:['greek yogurt','berries','flaxseed','honey','granola'],steps:['Layer yogurt with berries.','Sprinkle flaxseed and granola.','Drizzle with honey.'],why:'Probiotic yogurt and flaxseed support hormone metabolism.'},
+];
+
+function RecipesPage({profile,logs,setLogs,setPage}){
+  const today=todayISO();
+  const{phase}=getCycleInfo(profile.lastPeriod,+profile.cycleLength,today);
+  const bmi=calcBMI(profile.weight,profile.height);
+  const whr=calcWHR(profile.waist,profile.hip);
+  const[ing,setIng]=useState('');
+  const[maxTime,setMaxTime]=useState('30');
+  const[mealType,setMealType]=useState('any');
+  const[results,setResults]=useState([]);
+  const[generated,setGenerated]=useState(false);
+  const[active,setActive]=useState(null);
+  const[logged,setLogged]=useState({});
+  function score(r){
+    let s=0;
+    const ui=ing.toLowerCase().split(',').map(x=>x.trim()).filter(Boolean);
+    if(ui.length){const m=r.ing.filter(ri=>ui.some(u=>ri.toLowerCase().includes(u)||u.includes(ri.split(' ')[0].toLowerCase()))).length;s+=m*10;}
+    if(r.phase.includes(phase)||r.phase.includes('any'))s+=15;
+    if(mealType!=='any'&&r.meal===mealType)s+=10;
+    if(+maxTime&&r.time<=+maxTime)s+=8;
+    if(bmi){const c=bmiCat(bmi);if(c==='Underweight'&&r.tags.includes('calorie-dense'))s+=5;if((c==='Overweight'||c==='Obese')&&r.tags.includes('high-fiber'))s+=5;}
+    return s;
+  }
+  function generate(){const r=RECIPES.filter(r=>mealType==='any'||r.meal===mealType).filter(r=>!maxTime||r.time<=+maxTime).map(r=>({...r,score:score(r)})).sort((a,b)=>b.score-a.score).slice(0,3);setResults(r);setGenerated(true);setActive(null);}
+  function logCal(r){setLogs(p=>{const dl=p[today]||{};return{...p,[today]:{...dl,calories:(dl.calories||0)+r.cal}}});setLogged(p=>({...p,[r.id]:true}));}
+  return(
+    <div style={{maxWidth:900,margin:'0 auto',padding:'32px 20px'}}>
+      <BackBtn onClick={()=>setPage('home')}/>
+      <SectionHead title="AI Recipe Generator" subtitle="Enter ingredients and time, get phase-personalised recipe suggestions."/>
+      <div style={{display:'flex',gap:10,flexWrap:'wrap',marginBottom:20}}>
+        {phase&&<Badge label={`${PHASE_META[phase].label} Phase`} color={PHASE_META[phase].color} bg={PHASE_META[phase].color+'18'}/>}
+        {bmi&&<Badge label={`BMI ${bmi} · ${bmiCat(bmi)}`} color={T.sage} bg={T.sageLight}/>}
+        {whr&&<Badge label={`WHR ${whr} · ${whrCat(whr)}`} color={T.purple} bg={T.purpleLight}/>}
+      </div>
+      <Card style={{marginBottom:24}}>
+        <h3 style={{fontFamily:'Playfair Display,serif',fontSize:17,color:T.ink,margin:'0 0 18px'}}>What do you have?</h3>
+        <Input label="Available ingredients (comma-separated)" value={ing} onChange={e=>setIng(e.target.value)} placeholder="e.g. spinach, lentils, ginger, rice"/>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+          <Input label="Max time (minutes)" type="number" value={maxTime} onChange={e=>setMaxTime(e.target.value)} placeholder="30" min="5" max="120"/>
+          <div><label style={{display:'block',fontSize:11,fontWeight:600,color:T.inkLight,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:6}}>Meal Type</label>
+          <select value={mealType} onChange={e=>setMealType(e.target.value)} style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${T.border}`,borderRadius:10,fontSize:14,color:T.ink,background:T.cream,outline:'none'}}>
+            {['any','breakfast','lunch','dinner','snack'].map(o=><option key={o} value={o}>{o.charAt(0).toUpperCase()+o.slice(1)}</option>)}
+          </select></div>
+        </div>
+        <button onClick={generate} style={{width:'100%',padding:13,background:T.rose,color:'white',border:'none',borderRadius:12,fontWeight:700,fontSize:14,cursor:'pointer',marginTop:4}}>✨ Generate Personalised Recipes</button>
+      </Card>
+      {generated&&results.length>0&&(
+        <div>
+          <h3 style={{fontFamily:'Playfair Display,serif',fontSize:20,color:T.ink,marginBottom:16}}>Your personalised picks</h3>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(250px,1fr))',gap:18}}>
+            {results.map(r=>(
+              <Card key={r.id} style={{cursor:'pointer',border:active?.id===r.id?`2px solid ${T.rose}`:`1px solid ${T.border}`}} onClick={()=>setActive(active?.id===r.id?null:r)}>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+                  <Badge label={r.meal} color={T.gold} bg={T.goldLight}/>
+                  {r.phase.includes(phase)&&<Badge label="Phase match ✓" color={T.sage} bg={T.sageLight}/>}
+                </div>
+                <h4 style={{fontFamily:'Playfair Display,serif',fontSize:16,color:T.ink,margin:'0 0 6px'}}>{r.name}</h4>
+                <div style={{display:'flex',gap:14,marginBottom:8}}><span style={{fontSize:12,color:T.inkLight}}>⏱ {r.time} min</span><span style={{fontSize:12,color:T.sage,fontWeight:600}}>🔥 {r.cal} kcal</span></div>
+                <p style={{fontSize:12,color:T.inkMid,lineHeight:1.5,margin:'0 0 10px'}}>{r.why}</p>
+                <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:10}}>{r.tags.map(t=><Badge key={t} label={t} color={T.inkLight} bg={T.roseLight}/>)}</div>
+                <button onClick={e=>{e.stopPropagation();logCal(r)}} disabled={logged[r.id]} style={{width:'100%',padding:8,background:logged[r.id]?T.sageLight:T.rosePale,color:logged[r.id]?T.sage:T.rose,border:'none',borderRadius:10,fontWeight:600,fontSize:12,cursor:logged[r.id]?'default':'pointer'}}>
+                  {logged[r.id]?`✓ Logged ${r.cal} kcal`:`Log ${r.cal} kcal to today`}
+                </button>
+              </Card>
+            ))}
+          </div>
+          {active&&(
+            <Card style={{marginTop:24,borderLeft:`4px solid ${T.rose}`}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:18}}>
+                <div><h3 style={{fontFamily:'Playfair Display,serif',fontSize:22,color:T.ink,margin:'0 0 6px'}}>{active.name}</h3><div style={{display:'flex',gap:14}}><span style={{fontSize:13,color:T.inkLight}}>⏱ {active.time} minutes</span><span style={{fontSize:13,color:T.sage,fontWeight:600}}>🔥 {active.cal} kcal</span></div></div>
+                <button onClick={()=>setActive(null)} style={{background:T.roseLight,border:'none',borderRadius:8,padding:'6px 12px',cursor:'pointer',color:T.rose,fontWeight:600,fontSize:12}}>Close</button>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 2fr',gap:20}}>
+                <div><h4 style={{color:T.rose,fontSize:12,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:10}}>Ingredients</h4>
+                <ul style={{margin:0,padding:0,listStyle:'none'}}>{active.ing.map(i=><li key={i} style={{padding:'7px 0',borderBottom:`1px solid ${T.border}`,fontSize:13,color:T.inkMid}}>· {i}</li>)}</ul></div>
+                <div><h4 style={{color:T.rose,fontSize:12,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:10}}>Steps</h4>
+                <ol style={{margin:0,padding:0,listStyle:'none'}}>{active.steps.map((s,i)=><li key={i} style={{display:'flex',gap:12,marginBottom:12}}><div style={{flexShrink:0,width:24,height:24,borderRadius:'50%',background:T.rose,color:'white',fontWeight:700,fontSize:11,display:'flex',alignItems:'center',justifyContent:'center'}}>{i+1}</div><p style={{fontSize:13,color:T.inkMid,lineHeight:1.6,margin:0}}>{s}</p></li>)}</ol></div>
+              </div>
+              <div style={{background:T.roseLight,borderRadius:10,padding:'12px 16px',marginTop:16}}><span style={{fontWeight:600,color:T.rose}}>Why this for you: </span><span style={{fontSize:13,color:T.inkMid}}>{active.why}</span></div>
+            </Card>
+          )}
+        </div>
+      )}
+      {generated&&results.length===0&&<Card><p style={{textAlign:'center',color:T.inkLight}}>No recipes matched. Try extending the time or leaving ingredients blank.</p></Card>}
+    </div>
+  );
+}
+
+/* ---- MEAL PLANNER ---- */
+function MealPrepPage({profile,logs,setLogs,setPage}){
+  const today=todayISO();
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const[plan,setPlan]=useState(null);
+  const[showShop,setShowShop]=useState(false);
+  const[loggedMeals,setLoggedMeals]=useState({});
+  function generate(){
+    const p={};
+    days.forEach((d,i)=>{
+      const iso=addDays(today,i);
+      const{phase}=getCycleInfo(profile.lastPeriod,+profile.cycleLength,iso);
+      p[d]={date:iso,phase};
+      ['breakfast','lunch','dinner','snack'].forEach(mt=>{
+        const pool=RECIPES.filter(r=>r.meal===mt&&(r.phase.includes(phase)||r.phase.includes('any')||!phase));
+        const fb=RECIPES.filter(r=>r.meal===mt);
+        const src=pool.length>0?pool:fb;
+        p[d][mt]=src[Math.floor(Math.random()*src.length)];
+      });
+    });
+    setPlan(p);setShowShop(false);setLoggedMeals({});
+  }
+  function buildList(){
+    const all={};
+    Object.values(plan).forEach(d=>{
+      ['breakfast','lunch','dinner','snack'].forEach(mt=>{
+        if(d[mt]?.ing)d[mt].ing.forEach(i=>{const k=i.toLowerCase().trim();all[k]=(all[k]||0)+1;});
+      });
+    });
+    const cats={'Grains & Pulses':[],'Vegetables':[],'Fruits':[],'Protein & Dairy':[],'Nuts & Seeds':[],'Spices & Condiments':[],'Other':[]};
+    const gk=['rice','oat','quinoa','poha','flour','bread','lentil','dal','couscous','chickpea','bean'];
+    const vk=['spinach','kale','broccoli','carrot','onion','garlic','ginger','beetroot','mushroom','zucchini','pepper','tomato','cucumber','potato','cauliflower','corn','pumpkin'];
+    const fk=['banana','berries','lemon','lime','date','avocado'];
+    const pk=['egg','tofu','paneer','yogurt','milk','cheese','salmon','feta','chocolate'];
+    const nk=['almond','walnut','peanut','seed','flax','sesame','coconut','cashew'];
+    const sk=['cinnamon','cumin','turmeric','garam','mustard','cardamom','paprika','salt','honey','oil','ghee','soy','tahini','chilli'];
+    Object.keys(all).forEach(i=>{
+      if(gk.some(k=>i.includes(k)))cats['Grains & Pulses'].push(i);
+      else if(vk.some(k=>i.includes(k)))cats['Vegetables'].push(i);
+      else if(fk.some(k=>i.includes(k)))cats['Fruits'].push(i);
+      else if(pk.some(k=>i.includes(k)))cats['Protein & Dairy'].push(i);
+      else if(nk.some(k=>i.includes(k)))cats['Nuts & Seeds'].push(i);
+      else if(sk.some(k=>i.includes(k)))cats['Spices & Condiments'].push(i);
+      else cats['Other'].push(i);
+    });
+    return cats;
+  }
+  function logMeal(dayKey,mt,recipe){
+    setLoggedMeals(p=>({...p,[`${dayKey}-${mt}`]:true}));
+    const iso=plan[dayKey].date;
+    setLogs(p=>{const dl=p[iso]||{};return{...p,[iso]:{...dl,calories:(dl.calories||0)+recipe.cal}}});
+  }
+  const ShopItem=({item})=>{const[chk,setChk]=useState(false);return(<li onClick={()=>setChk(c=>!c)} style={{padding:'7px 0',borderBottom:`1px solid ${T.border}`,display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}><div style={{width:16,height:16,borderRadius:4,border:`2px solid ${chk?T.sage:T.border}`,background:chk?T.sage:'none',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{chk&&<span style={{color:'white',fontSize:9,fontWeight:700}}>✓</span>}</div><span style={{fontSize:13,color:chk?T.inkLight:T.inkMid,textDecoration:chk?'line-through':'none',textTransform:'capitalize'}}>{item}</span></li>);};
+  const list=plan&&showShop?buildList():null;
+  return(
+    <div style={{maxWidth:1100,margin:'0 auto',padding:'32px 20px'}}>
+      <BackBtn onClick={()=>setPage('home')}/>
+      <SectionHead title="Weekly Meal Planner" subtitle="A phase-aligned meal plan for the next 7 days with a smart shopping list." accent={T.sage}/>
+      <div style={{display:'flex',gap:12,marginBottom:24,flexWrap:'wrap'}}>
+        <button onClick={generate} style={{padding:'12px 24px',background:T.rose,color:'white',border:'none',borderRadius:12,fontWeight:700,fontSize:14,cursor:'pointer'}}>✨ Generate This Week's Plan</button>
+        {plan&&<button onClick={()=>setShowShop(!showShop)} style={{padding:'12px 24px',background:showShop?T.sage:T.sageLight,color:showShop?'white':T.sage,border:`1.5px solid ${T.sage}40`,borderRadius:12,fontWeight:700,fontSize:14,cursor:'pointer'}}>🛒 {showShop?'Show Meal Plan':'Shopping List'}</button>}
+      </div>
+      {plan&&!showShop&&(
+        <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          {days.map(dk=>{
+            const d=plan[dk];const isToday=d.date===today;const pm=d.phase?PHASE_META[d.phase]:null;
+            return(
+              <Card key={dk} style={{borderLeft:`4px solid ${pm?pm.color:T.border}`,background:isToday?T.roseLight:T.white}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+                  <div><span style={{fontFamily:'Playfair Display,serif',fontSize:17,fontWeight:700,color:T.ink,marginRight:10}}>{dk}</span><span style={{fontSize:11,color:T.inkLight}}>{fmtDate(d.date)}</span>{isToday&&<Badge label="Today" color={T.rose} bg={T.rosePale}/>}</div>
+                  {pm&&<Badge label={pm.label} color={pm.color} bg={pm.color+'18'}/>}
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10}}>
+                  {['breakfast','lunch','dinner','snack'].map(mt=>{
+                    const r=d[mt];const lk=`${dk}-${mt}`;const isL=loggedMeals[lk];
+                    if(!r)return null;
+                    return(
+                      <div key={mt} style={{background:isL?T.sageLight:T.cream,borderRadius:10,padding:'11px 13px',border:`1px solid ${isL?T.sage+'40':T.border}`}}>
+                        <div style={{fontSize:9,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:T.gold,marginBottom:4}}>{mt}</div>
+                        <div style={{fontSize:12,fontWeight:600,color:T.ink,marginBottom:4,lineHeight:1.3}}>{r.name}</div>
+                        <div style={{display:'flex',gap:8,fontSize:10,color:T.inkLight,marginBottom:8}}><span>⏱ {r.time}min</span><span>🔥 {r.cal} kcal</span></div>
+                        {isToday&&<button onClick={()=>logMeal(dk,mt,r)} disabled={isL} style={{width:'100%',padding:5,background:isL?T.sage:T.rose,color:'white',border:'none',borderRadius:6,fontWeight:600,fontSize:10,cursor:isL?'default':'pointer'}}>{isL?'✓ Logged':'Log Meal'}</button>}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{marginTop:8,fontSize:11,color:T.inkLight}}>Total: <strong style={{color:T.ink}}>{(['breakfast','lunch','dinner','snack'].reduce((a,mt)=>a+(d[mt]?.cal||0),0)).toLocaleString()} kcal</strong></div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+      {list&&(
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:18}}>
+          {Object.entries(list).filter(([,items])=>items.length>0).map(([cat,items])=>(
+            <Card key={cat}><h4 style={{fontFamily:'Playfair Display,serif',fontSize:15,color:T.ink,margin:'0 0 12px'}}>{cat}</h4>
+            <ul style={{margin:0,padding:0,listStyle:'none'}}>{[...new Set(items)].sort().map(item=><ShopItem key={item} item={item}/>)}</ul></Card>
+          ))}
+        </div>
+      )}
+      {!plan&&<Card style={{textAlign:'center',padding:'44px 24px'}}><div style={{fontSize:44,marginBottom:12}}>📋</div><p style={{fontSize:15,color:T.inkLight}}>Generate your personalised weekly plan — meals are chosen to align with your cycle phase each day.</p></Card>}
+    </div>
+  );
+}
+
+/* ---- YOGA ---- */
+const YOGA={
+  menstrual:{label:'Menstrual',color:'#A8425A',bg:'#FDF0F3',title:'Rest, Release & Restore',intro:'Favour gentle, restorative poses that ease cramps and release tension in the lower back and pelvis.',poses:[
+    {name:'Supta Baddha Konasana',sub:'Reclined Butterfly',dur:'5–8 min',type:'restorative',inst:'Lie on your back. Bring soles of feet together, knees fall open. Support knees with blankets. Rest hands on belly. Breathe deeply into lower abdomen.',ben:'Opens hips and groin, soothes uterine cramps, calms the nervous system.',yt:'qOZVV6b9H5k'},
+    {name:'Balasana',sub:"Child's Pose",dur:'3–5 min',type:'restorative',inst:'Kneel, big toes touching, knees wide. Fold forward, arms stretched ahead. Press forehead gently into mat.',ben:'Relieves lower back pressure, eases abdominal cramping, deeply calming.',yt:'eqVMAPM00DM'},
+    {name:'Viparita Karani',sub:'Legs-Up-the-Wall',dur:'5–10 min',type:'restorative',inst:'Sit sideways against a wall, swing legs up as you lie back. Arms by sides, palms up. Eyes closed, breathe slowly.',ben:'Reduces back fatigue, encourages circulation, deeply relaxing.',yt:'zJPLiXFHOaE'},
+    {name:'Supta Matsyendrasana',sub:'Reclined Spinal Twist',dur:'3 min each side',type:'gentle',inst:'Lie on back, draw one knee to chest then guide across body. Extend arm out to side. Hold, repeat other side.',ben:'Releases tension in sacrum, gently massages abdominal organs.',yt:'MsYMR4Q3_oY'},
+    {name:'Savasana with Bolster',sub:'Supported Corpse Pose',dur:'10 min',type:'restorative',inst:'Bolster under knees. Lie flat, arms relaxed, eyes closed. 4-count inhale, 6-count exhale.',ben:'Total body relaxation, lowers cortisol, supports rest.',yt:'w39bMQgMJpI'},
+  ],breath:'Nadi Shodhana (Alternate Nostril): Close right nostril with thumb. Inhale left 4 counts. Hold 4 counts. Release right, exhale 6 counts. Repeat 5–10 minutes. Balances the nervous system.'},
+  follicular:{label:'Follicular',color:'#C98E4F',bg:'#FDF6EE',title:'Rise, Build & Energise',intro:'As oestrogen rises, your energy lifts. Best time to try new poses, build strength and explore expansive movement.',poses:[
+    {name:'Surya Namaskar',sub:'Sun Salutation (3–6 rounds)',dur:'10–15 min',type:'dynamic',inst:'Flow through the 12-pose sequence. Sync each movement with a breath. Start slowly and build speed.',ben:'Full-body warm-up, builds heat and circulation, invigorating.',yt:'VaoV1PrYft4'},
+    {name:'Virabhadrasana II',sub:'Warrior II',dur:'45 sec each side',type:'strength',inst:'Step feet wide. Turn right foot out 90°. Bend right knee over ankle, left leg straight. Arms parallel to floor, gaze over right fingertips.',ben:'Builds leg and core strength, improves stamina and focus.',yt:'E4UFhT7Mkkg'},
+    {name:'Utthita Trikonasana',sub:'Extended Triangle Pose',dur:'1 min each side',type:'strength',inst:'Wide stance, turn one foot out. Reach leading hand toward shin or floor, top arm to sky. Look up and breathe.',ben:'Stretches hamstrings and sides, improves balance.',yt:'XLVFg-BJPTI'},
+    {name:'Navasana',sub:'Boat Pose',dur:'30 sec × 3',type:'strength',inst:'Sit, bend knees, lean back, shins parallel to floor. Extend arms forward. Hold, breathe into core.',ben:'Strengthens core and hip flexors, builds confidence.',yt:'zh4EOI2ufm4'},
+    {name:'Ustrasana',sub:'Camel Pose',dur:'30 sec × 2',type:'backbend',inst:'Kneel, hips over knees. Hands on lower back. Inhale, open chest upward. Reach back for heels if comfortable.',ben:'Heart-opening, energising, supports increased oestrogen.',yt:'BARoB-b4JaM'},
+  ],breath:'Kapalabhati (Skull-Shining Breath): Sharp rhythmic exhales through nose, 1 per second, passive inhales. 30 breaths, rest, repeat 3 rounds. Energising and uplifting.'},
+  ovulatory:{label:'Ovulatory',color:'#8FA15C',bg:'#F3F7EC',title:'Peak Energy & Expansive Flow',intro:'Ovulation is your peak energy window. Channel confidence and vitality into strong, expressive movement.',poses:[
+    {name:'Vinyasa Flow',sub:'Dynamic Linking Flow',dur:'20 min',type:'dynamic',inst:'Link warrior sequences, chair pose, high lunge and balancing poses in continuous breath-led flow.',ben:'Builds heat, improves cardio fitness, expressive and empowering.',yt:'9kOCY0KNByw'},
+    {name:'Natarajasana',sub:"Dancer's Pose",dur:'45 sec each side',type:'balance',inst:"Stand on one foot, bend opposite knee, hold inner ankle. Slowly extend leg behind you while reaching free arm forward.",ben:'Improves balance, opens heart and hip flexors, graceful.',yt:'Oir0mcPnBJo'},
+    {name:'Utthita Hasta Padangusthasana',sub:'Extended Hand-to-Big-Toe',dur:'1 min each side',type:'balance',inst:'From standing, bend one knee to chest, hold big toe, slowly extend leg forward. Standing leg strong.',ben:'Builds balance, hamstring flexibility and mental focus.',yt:'qDgO6nTM3fM'},
+    {name:'Handstand Prep',sub:'At the Wall',dur:'3 × 30 sec',type:'inversion',inst:'Walk feet up wall to L-shape. When comfortable, kick up one leg at a time. Arms straight, core firm.',ben:'Builds upper body strength, boosts confidence.',yt:'yZBNxYxrp8Q'},
+    {name:'Urdhva Dhanurasana',sub:'Wheel Pose',dur:'30 sec × 2',type:'backbend',inst:'Lie on back, hands beside head, feet near hips. Press up to crown, then straighten arms. Warm up first.',ben:'Powerful heart opener, builds full-body strength, joyful.',yt:'OiHBFf6bXnQ'},
+  ],breath:'Bhastrika (Bellows Breath): Forceful in and out through nose equally, 1–2 breaths/sec. 20 breaths per round, 3 rounds. Builds heat, energy and clarity.'},
+  luteal:{label:'Luteal',color:'#6E5A9C',bg:'#F5F3FB',title:'Ground, Slow & Nourish',intro:'Progesterone rises and the body slows. Favour grounding, introspective practices that calm the nervous system.',poses:[
+    {name:'Prasarita Padottanasana',sub:'Wide-Legged Forward Fold',dur:'2 min',type:'grounding',inst:'Step feet wide and parallel. Hinge at hips, walk hands to floor. Let head hang heavy.',ben:'Calms nervous system, relieves PMS headaches, grounding.',yt:'VG2-BCXGYbI'},
+    {name:'Paschimottanasana',sub:'Seated Forward Fold',dur:'3 min',type:'grounding',inst:'Sit, legs extended. Inhale, lengthen spine; exhale, fold forward. Rest hands or forehead on legs.',ben:'Soothes nervous system, calms anxiety and irritability.',yt:'Ixv6i3JxNDI'},
+    {name:'Ananda Balasana',sub:'Happy Baby Pose',dur:'2–3 min',type:'restorative',inst:'Lie on back, draw knees to chest, grip outer edges of feet. Pull knees toward armpits. Rock side to side.',ben:'Releases sacral tension, calms bloating.',yt:'LHFKU0Wv5fc'},
+    {name:'Virasana + Pranayama',sub:"Hero's Pose with Breath",dur:'5 min',type:'grounding',inst:"Sit between heels (use block if needed). Hands on thighs. Practice alternate nostril breathing for 5 minutes.",ben:'Deep grounding, balances nervous system, reduces PMS anxiety.',yt:'K2nSIDR8oFo'},
+    {name:'Yoga Nidra',sub:'Yogic Sleep',dur:'20 min',type:'restorative',inst:'Lie in Savasana. Follow guided body scan: consciously relax each body part from toes to crown.',ben:'Deeply restorative, lowers cortisol, improves sleep.',yt:'M0u9GSekNW4'},
+  ],breath:'Box Breathing (4-4-4-4): Inhale 4 counts, hold 4, exhale 4, hold 4. Repeat 5–10 minutes. Regulates cortisol and calms PMS anxiety.'},
+};
+
+function YogaPage({profile,setPage}){
+  const{phase}=getCycleInfo(profile.lastPeriod,+profile.cycleLength);
+  const[tab,setTab]=useState(phase||'menstrual');
+  const[openPose,setOpenPose]=useState(null);
+  const data=YOGA[tab];
+  return(
+    <div style={{maxWidth:1000,margin:'0 auto',padding:'32px 20px'}}>
+      <BackBtn onClick={()=>setPage('home')}/>
+      <SectionHead title="Yoga & Movement" subtitle="Phase-specific routines with video guides and breathing exercises."/>
+      <div style={{display:'flex',gap:8,marginBottom:24,flexWrap:'wrap'}}>
+        {Object.entries(YOGA).map(([k,v])=>(
+          <button key={k} onClick={()=>{setTab(k);setOpenPose(null)}} style={{padding:'9px 18px',borderRadius:12,fontWeight:700,fontSize:12,background:tab===k?v.color:'none',color:tab===k?'white':v.color,border:`2px solid ${v.color}`,cursor:'pointer',position:'relative'}}>
+            {v.label}{k===phase&&<span style={{position:'absolute',top:-3,right:-3,width:8,height:8,borderRadius:'50%',background:T.rose,border:'2px solid white'}}/>}
+          </button>
+        ))}
+      </div>
+      <Card style={{marginBottom:22,background:data.bg,border:`1px solid ${data.color}30`}}>
+        <h3 style={{fontFamily:'Playfair Display,serif',fontSize:20,color:data.color,margin:'0 0 8px'}}>{data.title}</h3>
+        <p style={{fontSize:13,color:T.inkMid,lineHeight:1.65,margin:0}}>{data.intro}</p>
+        {tab===phase&&<div style={{marginTop:10,display:'inline-flex',alignItems:'center',gap:6,background:data.color+'18',borderRadius:20,padding:'4px 14px'}}><div style={{width:7,height:7,borderRadius:'50%',background:data.color}}/><span style={{fontSize:11,fontWeight:600,color:data.color}}>Your current phase</span></div>}
+      </Card>
+      <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        {data.poses.map((pose,i)=>{
+          const isOpen=openPose===i;
+          return(
+            <Card key={i} style={{border:isOpen?`2px solid ${data.color}`:`1px solid ${T.border}`}}>
+              <div style={{cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'flex-start'}} onClick={()=>setOpenPose(isOpen?null:i)}>
+                <div style={{flex:1}}>
+                  <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap',marginBottom:6}}>
+                    <div style={{width:28,height:28,borderRadius:'50%',background:data.color+'20',display:'flex',alignItems:'center',justifyContent:'center',color:data.color,fontWeight:800,fontSize:12,flexShrink:0}}>{i+1}</div>
+                    <div><h4 style={{fontFamily:'Playfair Display,serif',fontSize:17,color:T.ink,margin:0}}>{pose.name}</h4><div style={{fontSize:12,color:T.inkLight,fontStyle:'italic'}}>{pose.sub}</div></div>
+                  </div>
+                  <div style={{display:'flex',gap:10,marginLeft:38,flexWrap:'wrap'}}>
+                    <Badge label={`⏱ ${pose.dur}`} color={data.color} bg={data.bg}/>
+                    <Badge label={pose.type} color={T.inkLight} bg={T.roseLight}/>
+                  </div>
+                </div>
+                <div style={{color:data.color,fontSize:16,marginLeft:12}}>{isOpen?'▲':'▼'}</div>
+              </div>
+              {isOpen&&(
+                <div style={{marginTop:18,paddingTop:18,borderTop:`1px solid ${T.border}`}}>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:18}}>
+                    <div>
+                      <h5 style={{fontSize:11,fontWeight:700,color:data.color,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:8}}>Instructions</h5>
+                      <p style={{fontSize:13,color:T.inkMid,lineHeight:1.65,margin:'0 0 12px'}}>{pose.inst}</p>
+                      <div style={{background:data.bg,borderRadius:10,padding:'10px 12px'}}>
+                        <div style={{fontSize:10,fontWeight:700,color:data.color,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:3}}>Benefits</div>
+                        <p style={{fontSize:12,color:T.inkMid,margin:0,lineHeight:1.5}}>{pose.ben}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <h5 style={{fontSize:11,fontWeight:700,color:data.color,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:8}}>Video Guide</h5>
+                      <div style={{position:'relative',paddingBottom:'56.25%',height:0,borderRadius:12,overflow:'hidden'}}>
+                        <iframe src={`https://www.youtube.com/embed/${pose.yt}?rel=0&modestbranding=1`} title={pose.name} allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowFullScreen style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',border:'none',borderRadius:12}}/>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+      <Card style={{marginTop:22,background:data.bg}}>
+        <h3 style={{fontFamily:'Playfair Display,serif',fontSize:17,color:data.color,margin:'0 0 10px'}}>🌬 Pranayama for the {data.label} Phase</h3>
+        <p style={{fontSize:13,color:T.inkMid,lineHeight:1.65,margin:0}}>{data.breath}</p>
+      </Card>
+    </div>
+  );
+}
+
+/* ---- AYURVEDA ---- */
+const TEAS=[
+  {name:'Ginger & Cinnamon Cramp Tea',phase:'menstrual',ing:'1 tsp grated ginger · 1 cinnamon stick · 1 tsp honey · 1 cup water',brew:'Simmer ginger and cinnamon 5–7 min. Strain, cool, stir in honey.',ben:'Ginger inhibits prostaglandins — clinically shown to reduce cramp intensity.',emoji:'🫚'},
+  {name:'Raspberry Leaf & Rose Tea',phase:'menstrual',ing:'1 tbsp dried raspberry leaf · 1 tsp dried rose petals · 1 cup boiling water',brew:'Steep raspberry leaf 10 min, add rose petals last 2 min. Strain warm.',ben:"Raspberry leaf tones the uterine muscle. Rose is cooling and emotionally soothing.",emoji:'🌹'},
+  {name:'Spearmint & Licorice Tea',phase:'follicular',ing:'1 tbsp dried spearmint · 1 piece dried licorice root · 1 cup water',brew:'Steep spearmint and licorice root in hot water 8 minutes. Strain.',ben:'Spearmint clinically shown to lower excess androgens — beneficial for PCOS.',emoji:'🌿'},
+  {name:'Brahmi Brain Tonic',phase:'follicular',ing:'½ tsp Brahmi powder · 1 cup warm milk · pinch of saffron · honey',brew:'Warm milk, whisk in Brahmi and saffron. Sweeten with honey.',ben:'Brahmi reduces anxiety and supports memory. Saffron is a natural mood-lifter.',emoji:'🧠'},
+  {name:'Shatavari Tonic',phase:'any',ing:'1 tsp Shatavari powder · 1 cup warm milk · ¼ tsp cardamom · honey',brew:'Whisk Shatavari into warm milk. Add cardamom and honey. Take morning or before sleep.',ben:'Premier Ayurvedic herb for women\'s hormonal health — nourishes uterus and regulates cycles.',emoji:'✨'},
+  {name:'Ashwagandha Adaptogen Milk',phase:'luteal',ing:'½ tsp ashwagandha powder · 1 cup warm milk · pinch cardamom · honey',brew:'Warm milk, whisk in ashwagandha and cardamom. Sweeten with honey.',ben:'Reduces cortisol, supports progesterone and eases PMS anxiety and fatigue.',emoji:'🌙'},
+  {name:'Fennel Bloat Relief Tea',phase:'luteal',ing:'1 tsp fennel seeds · 1 cup boiling water · fresh ginger',brew:'Crush fennel seeds. Add with ginger to boiling water. Steep 8 min, strain.',ben:'Antispasmodic that eases luteal-phase bloating and digestive discomfort.',emoji:'🫧'},
+  {name:'Triphala Detox Drink',phase:'any',ing:'½ tsp Triphala powder · 1 cup warm water · 1 tsp honey',brew:'Stir Triphala into warm water. Add honey. Drink on empty stomach or before bed.',ben:'Supports gut health and gentle detoxification — foundational for hormonal balance.',emoji:'🪴'},
+];
+const SEEDS=[
+  {name:'Follicular & Ovulatory (Days 1–14)',seeds:['Flaxseeds — 1 tbsp ground daily','Pumpkin seeds — 1 tbsp daily'],why:'Flaxseeds contain lignans that modulate oestrogen. Pumpkin seeds are rich in zinc, supporting progesterone production.',how:'Grind flaxseeds fresh daily. Add both to smoothies, yogurt, oatmeal or salads.',emoji:'🌱',phases:['follicular','ovulatory']},
+  {name:'Luteal & Menstrual (Days 15–28)',seeds:['Sesame seeds — 1 tbsp daily','Sunflower seeds — 1 tbsp daily'],why:'Sesamin in sesame helps regulate oestrogen. Sunflower seeds are rich in Vitamin E and selenium, supporting progesterone.',how:'Toast lightly or use raw. Sprinkle on dal, salads, or stir into nut butter.',emoji:'🌻',phases:['luteal','menstrual']},
+];
+const RITUALS=[
+  {name:'Abhyanga (Self-Massage)',desc:'Warm sesame or coconut oil and gently massage your entire body before bathing — long strokes on limbs, circular on joints. Especially grounding during menstrual and luteal phases.',ben:'Calms the nervous system, improves circulation, reduces cortisol.'},
+  {name:'Nasya (Nasal Oiling)',desc:'Apply 2–3 drops of warm sesame oil inside each nostril in the morning. Breathe gently through each nostril.',ben:'Clears energy channels, reduces headaches, supports hormonal communication pathways.'},
+  {name:'Tongue Scraping & Oil Pulling',desc:'Each morning before eating: scrape tongue 7 times with a copper scraper, then swish 1 tbsp sesame or coconut oil for 10–15 minutes. Spit into a bin.',ben:'Removes toxins, supports gut-hormone axis, improves oral and digestive health.'},
+  {name:'Yoni Steam (Herbal Steam)',desc:'After your period ends: bowl of warm water with rose petals, lavender and neem. Sit above the steam covered for 10–15 minutes. Never during active menstruation.',ben:'Supports uterine health, increases circulation to the pelvis.'},
+];
+
+function AyurvedaPage({profile,setPage}){
+  const{phase}=getCycleInfo(profile.lastPeriod,+profile.cycleLength);
+  const[tab,setTab]=useState('teas');
+  const[openR,setOpenR]=useState(null);
+  const tabs=[{k:'teas',l:'Herbal Teas',i:'🍵'},{k:'seeds',l:'Seed Cycling',i:'🌱'},{k:'rituals',l:'Daily Rituals',i:'🪔'}];
+  const filteredTeas=tab==='teas'?(phase?TEAS.filter(t=>t.phase===phase||t.phase==='any'):TEAS):[];
+  return(
+    <div style={{maxWidth:960,margin:'0 auto',padding:'32px 20px'}}>
+      <BackBtn onClick={()=>setPage('home')}/>
+      <SectionHead title="Ayurveda & Natural Healing" subtitle="Ancient wisdom for modern hormonal health." accent={T.sage}/>
+      {phase&&<Card style={{marginBottom:22,background:T.sageLight,border:`1px solid ${T.sage}30`}}><p style={{margin:0,fontSize:13,color:T.inkMid}}>You are in your <strong style={{color:T.sage}}>{PHASE_META[phase].label} phase</strong>. Recommendations below are personalised for you right now.</p></Card>}
+      <div style={{display:'flex',gap:8,marginBottom:24}}>
+        {tabs.map(t=><button key={t.k} onClick={()=>setTab(t.k)} style={{padding:'9px 18px',borderRadius:12,fontWeight:600,fontSize:13,background:tab===t.k?T.sage:'none',color:tab===t.k?'white':T.sage,border:`2px solid ${T.sage}60`,cursor:'pointer'}}>{t.i} {t.l}</button>)}
+      </div>
+      {tab==='teas'&&(
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(270px,1fr))',gap:18}}>
+          {filteredTeas.map(tea=>(
+            <Card key={tea.name} style={{position:'relative'}}>
+              <div style={{position:'absolute',top:18,right:18,fontSize:26}}>{tea.emoji}</div>
+              <div style={{marginBottom:8,paddingRight:40}}>
+                <Badge label={tea.phase==='any'?'All phases':(PHASE_META[tea.phase]?.label||tea.phase)} color={tea.phase==='any'?T.sage:(PHASE_META[tea.phase]?.color||T.sage)} bg={(tea.phase==='any'?T.sage:(PHASE_META[tea.phase]?.color||T.sage))+'18'}/>
+              </div>
+              <h4 style={{fontFamily:'Playfair Display,serif',fontSize:17,color:T.ink,margin:'0 0 12px'}}>{tea.name}</h4>
+              <div style={{marginBottom:10}}><div style={{fontSize:10,fontWeight:700,color:T.sage,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>Ingredients</div><p style={{fontSize:12,color:T.inkMid,margin:0,lineHeight:1.5}}>{tea.ing}</p></div>
+              <div style={{marginBottom:10}}><div style={{fontSize:10,fontWeight:700,color:T.sage,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>How to prepare</div><p style={{fontSize:12,color:T.inkMid,margin:0,lineHeight:1.5}}>{tea.brew}</p></div>
+              <div style={{background:T.sageLight,borderRadius:10,padding:'10px 12px'}}><div style={{fontSize:10,fontWeight:700,color:T.sage,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:3}}>Why it works</div><p style={{fontSize:11,color:T.inkMid,margin:0,lineHeight:1.5}}>{tea.ben}</p></div>
+            </Card>
+          ))}
+        </div>
+      )}
+      {tab==='seeds'&&(
+        <div>
+          <Card style={{marginBottom:20,background:T.sageLight}}><h3 style={{fontFamily:'Playfair Display,serif',fontSize:18,color:'#3A6B50',margin:'0 0 8px'}}>What is Seed Cycling?</h3><p style={{fontSize:13,color:T.inkMid,lineHeight:1.65,margin:0}}>Seed cycling uses specific seeds at specific cycle phases to gently support hormonal balance through unique lignans, fatty acids and micronutrients. Best practised consistently for 3 months.</p></Card>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:20}}>
+            {SEEDS.map(s=>{const isActive=phase&&s.phases.includes(phase);return(
+              <Card key={s.name} style={{border:isActive?`2px solid ${T.sage}`:`1px solid ${T.border}`,background:isActive?T.sageLight:T.white}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}><div style={{fontSize:30}}>{s.emoji}</div>{isActive&&<Badge label="Your phase now" color={T.sage} bg={T.sage+'20'}/>}</div>
+                <h4 style={{fontFamily:'Playfair Display,serif',fontSize:16,color:T.ink,margin:'0 0 12px'}}>{s.name}</h4>
+                <div style={{marginBottom:12}}><div style={{fontSize:10,fontWeight:700,color:T.sage,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:6}}>Seeds to use daily</div>{s.seeds.map(sd=><div key={sd} style={{padding:'7px 10px',background:T.sageLight,borderRadius:8,marginBottom:5,fontSize:13,fontWeight:600,color:'#3A6B50'}}>🌿 {sd}</div>)}</div>
+                <div style={{marginBottom:12}}><div style={{fontSize:10,fontWeight:700,color:T.sage,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>Why these seeds?</div><p style={{fontSize:12,color:T.inkMid,lineHeight:1.6,margin:0}}>{s.why}</p></div>
+                <div style={{background:'#EEF8F2',borderRadius:10,padding:'10px 12px'}}><div style={{fontSize:10,fontWeight:700,color:T.sage,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:3}}>How to take</div><p style={{fontSize:12,color:T.inkMid,margin:0,lineHeight:1.5}}>{s.how}</p></div>
+              </Card>
+            );})}
+          </div>
+        </div>
+      )}
+      {tab==='rituals'&&(
+        <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          {RITUALS.map((r,i)=>{const isOpen=openR===i;return(
+            <Card key={r.name}>
+              <div style={{cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center'}} onClick={()=>setOpenR(isOpen?null:i)}>
+                <h4 style={{fontFamily:'Playfair Display,serif',fontSize:17,color:T.ink,margin:0}}>{r.name}</h4>
+                <span style={{color:T.sage,fontSize:16}}>{isOpen?'▲':'▼'}</span>
+              </div>
+              {isOpen&&<div style={{marginTop:14,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
+                <p style={{fontSize:13,color:T.inkMid,lineHeight:1.65,margin:'0 0 12px'}}>{r.desc}</p>
+                <div style={{background:T.sageLight,borderRadius:10,padding:'10px 14px'}}><span style={{fontWeight:700,color:T.sage,fontSize:13}}>Benefits: </span><span style={{fontSize:13,color:T.inkMid}}>{r.ben}</span></div>
+              </div>}
+            </Card>
+          );})}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---- DISORDERS ---- */
+const DISORDERS=[
+  {id:'pcos',name:'PCOS',full:'Polycystic Ovary Syndrome',emoji:'🔵',prev:'Affects ~1 in 10 women of reproductive age',syms:['Irregular or absent periods','Excess androgen — acne, facial hair, hair thinning','Weight gain around the waist','Difficulty conceiving','Multiple small cysts on ovaries','Fatigue and mood changes'],causes:'Linked to insulin resistance, elevated androgens and inflammation. Has a genetic component but strongly influenced by lifestyle.',nutrition:['Follow a low-glycaemic diet: whole grains, legumes, non-starchy vegetables.','Reduce refined sugars and white flour.','Add anti-inflammatory foods: turmeric, omega-3 fish, berries, leafy greens.','Spearmint tea (2 cups/day) — clinically shown to lower androgens.','Myo-inositol (2–4 g/day) — well-researched for insulin sensitivity in PCOS.'],exercise:'150 min/week moderate aerobic activity. Add 2 strength sessions. Exercise is as effective as medication for insulin sensitivity.',ayurveda:'Spearmint tea, Shatavari, Triphala and Ashwagandha are primary supports. Kapha-balancing diet (warm, light, spiced foods). Yoga Nidra and Pranayama reduce cortisol.',doctor:'Absent periods 3+ months, difficulty conceiving after 6–12 months, severe acne or hair loss.'},
+  {id:'endo',name:'Endometriosis',full:'Endometriosis',emoji:'🔴',prev:'Affects ~1 in 10 women — average 7–10 years to diagnosis',syms:['Severe menstrual cramps','Chronic pelvic pain outside of period','Pain during or after intercourse','Pain with bowel movements or urination','Heavy or irregular periods','Fatigue','Infertility in some cases'],causes:'Endometrial-like tissue grows outside the uterus, causing inflammation, adhesions and scar tissue.',nutrition:['Anti-inflammatory diet: omega-3s, turmeric, ginger, leafy greens.','Reduce red meat, trans fats, alcohol and caffeine.','Increase dietary fibre to support oestrogen excretion.','Magnesium glycinate (200–400 mg/day) may help with pain — discuss with doctor.'],exercise:'Gentle, anti-inflammatory movement: yoga, swimming, walking. Avoid high-impact during a flare. Pelvic floor physiotherapy can be transformative.',ayurveda:'Yoni steam after menstruation, Triphala, Shatavari and warm castor oil packs on the lower abdomen (not during period).',doctor:'Any pelvic pain disrupting your life — especially pain during sex. Requires specialist referral for definitive diagnosis.'},
+  {id:'pmdd',name:'PMDD',full:'Premenstrual Dysphoric Disorder',emoji:'🟣',prev:'Affects ~3–8% of menstruating women — often misdiagnosed',syms:['Severe mood swings or irritability 1–2 weeks before period','Marked depression, hopelessness or anxiety','Difficulty concentrating','Fatigue and low energy','Changes in appetite or sleep','Bloating, breast tenderness, headaches','Symptoms resolve within days of period starting'],causes:'Abnormal neurological sensitivity to normal luteal-phase hormone fluctuations, particularly affecting serotonin systems.',nutrition:['Calcium-rich foods: dairy, fortified plant milk, leafy greens.','Vitamin B6 (50–100 mg/day) supports serotonin.','Magnesium (300–400 mg/day) in the luteal phase.','Reduce caffeine, alcohol and refined sugar 2 weeks before period.'],exercise:'Aerobic exercise 3–5 times weekly is as effective as antidepressants for mild-moderate PMDD. Walking, yoga and dancing are excellent.',ayurveda:'Ashwagandha, Brahmi, Shatavari and Yoga Nidra are key. Daily Abhyanga (self-massage) is deeply calming.',doctor:'PMDD is a diagnosable condition. Seek help if symptoms significantly disrupt work or relationships.'},
+  {id:'menopause',name:'Menopause',full:'Menopause & Post-Menopause',emoji:'🌸',prev:'Natural end of menstruation, typically 45–55. Perimenopause may start in late 30s.',syms:['Hot flushes and night sweats','Irregular periods (perimenopause)','Vaginal dryness','Sleep disturbances','Mood changes, anxiety or brain fog','Reduced libido','Joint pain and muscle aches','Increased cardiovascular and bone-loss risk'],causes:'Natural decline of ovarian oestrogen and progesterone production.',nutrition:['Calcium 1,200 mg/day + Vitamin D 1,000–2,000 IU/day for bone density.','Phytoestrogen-rich foods: soy, flaxseed, lentils — may ease hot flushes.','Increase omega-3s for cardiovascular and joint health.','Protein 1.2–1.6 g/kg body weight to preserve muscle mass.'],exercise:'Weight-bearing exercise (walking, weight training) is the most evidence-based strategy to maintain bone density. Aim for 2 strength sessions weekly.',ayurveda:'Shatavari (2 g/day in warm milk) is the premier herb for menopause. Ashwagandha for energy. Cooling practices (Sheetali pranayama) help manage hot flushes.',doctor:'Early menopause under 45, severe hot flushes, new-onset depression, bone density concerns, or any postmenopausal bleeding.'},
+];
+
+function DisordersPage({setPage}){
+  const[sel,setSel]=useState(null);
+  const[secTab,setSecTab]=useState('syms');
+  const sections=[{k:'syms',l:'Symptoms'},{k:'causes',l:'Causes'},{k:'nutrition',l:'Nutrition'},{k:'exercise',l:'Movement'},{k:'ayurveda',l:'Ayurveda'},{k:'doctor',l:'See a Doctor'}];
+  return(
+    <div style={{maxWidth:960,margin:'0 auto',padding:'32px 20px'}}>
+      <BackBtn onClick={()=>{if(sel){setSel(null)}else{setPage('home')}}}/>
+      <SectionHead title="Wellness & Disorders Guide" subtitle="Evidence-based guidance on common menstrual health conditions." accent={T.purple}/>
+      {!sel?(
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:18}}>
+          {DISORDERS.map(d=>(
+            <button key={d.id} onClick={()=>{setSel(d);setSecTab('syms')}} style={{textAlign:'left',background:T.white,border:`1px solid ${T.border}`,borderRadius:16,padding:22,cursor:'pointer',transition:'all 0.2s',boxShadow:`0 2px 10px ${T.shadow}`}}
+              onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=`0 6px 20px ${T.shadowMd}`}}
+              onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow=`0 2px 10px ${T.shadow}`}}>
+              <div style={{fontSize:32,marginBottom:10}}>{d.emoji}</div>
+              <h3 style={{fontFamily:'Playfair Display,serif',fontSize:19,color:T.ink,margin:'0 0 4px'}}>{d.full}</h3>
+              <div style={{fontSize:11,color:T.inkLight,marginBottom:10,fontStyle:'italic'}}>{d.prev}</div>
+              <div style={{fontSize:12,color:T.inkMid,lineHeight:1.5,marginBottom:12}}>{d.syms.slice(0,3).map(s=>`· ${s}`).join('\n')}</div>
+              <div style={{fontSize:12,color:T.purple,fontWeight:600}}>Read full guide →</div>
+            </button>
+          ))}
+        </div>
+      ):(
+        <div>
+          <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:22}}>
+            <div style={{fontSize:38}}>{sel.emoji}</div>
+            <div><h2 style={{fontFamily:'Playfair Display,serif',fontSize:26,color:T.ink,margin:0}}>{sel.full}</h2><p style={{margin:'4px 0 0',fontSize:12,color:T.inkLight,fontStyle:'italic'}}>{sel.prev}</p></div>
+          </div>
+          <div style={{display:'flex',gap:6,marginBottom:22,flexWrap:'wrap',borderBottom:`1px solid ${T.border}`,paddingBottom:14}}>
+            {sections.map(s=><button key={s.k} onClick={()=>setSecTab(s.k)} style={{padding:'7px 16px',borderRadius:10,fontWeight:600,fontSize:12,background:secTab===s.k?T.purple:'none',color:secTab===s.k?'white':T.inkLight,border:`1.5px solid ${secTab===s.k?T.purple:T.border}`,cursor:'pointer'}}>{s.l}</button>)}
+          </div>
+          <Card style={{borderLeft:`4px solid ${T.purple}`}}>
+            {secTab==='syms'&&<div><h3 style={{fontFamily:'Playfair Display,serif',fontSize:19,color:T.ink,margin:'0 0 14px'}}>Signs & Symptoms</h3><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:10}}>{sel.syms.map(s=><div key={s} style={{display:'flex',gap:8,padding:'10px 12px',background:T.purpleLight,borderRadius:10}}><span style={{color:T.purple,flexShrink:0}}>◆</span><span style={{fontSize:13,color:T.inkMid}}>{s}</span></div>)}</div></div>}
+            {secTab==='causes'&&<div><h3 style={{fontFamily:'Playfair Display,serif',fontSize:19,color:T.ink,margin:'0 0 12px'}}>Causes</h3><p style={{fontSize:14,color:T.inkMid,lineHeight:1.7,margin:0}}>{sel.causes}</p></div>}
+            {secTab==='nutrition'&&<div><h3 style={{fontFamily:'Playfair Display,serif',fontSize:19,color:T.ink,margin:'0 0 14px'}}>Nutrition Guidance</h3>{sel.nutrition.map((n,i)=><div key={i} style={{display:'flex',gap:10,padding:'11px 14px',background:T.roseLight,borderRadius:10,marginBottom:8}}><span style={{color:T.rose,fontWeight:800,flexShrink:0}}>{i+1}.</span><span style={{fontSize:13,color:T.inkMid,lineHeight:1.55}}>{n}</span></div>)}</div>}
+            {secTab==='exercise'&&<div><h3 style={{fontFamily:'Playfair Display,serif',fontSize:19,color:T.ink,margin:'0 0 12px'}}>Movement & Exercise</h3><p style={{fontSize:14,color:T.inkMid,lineHeight:1.7,margin:0}}>{sel.exercise}</p></div>}
+            {secTab==='ayurveda'&&<div><h3 style={{fontFamily:'Playfair Display,serif',fontSize:19,color:T.ink,margin:'0 0 12px'}}>Ayurvedic Approach</h3><p style={{fontSize:14,color:T.inkMid,lineHeight:1.7,margin:0}}>{sel.ayurveda}</p></div>}
+            {secTab==='doctor'&&<div><div style={{display:'flex',gap:10,padding:'12px 16px',background:'#FFF3F5',borderRadius:12,border:`1.5px solid ${T.rose}30`,marginBottom:14}}><span style={{fontSize:18}}>⚕️</span><p style={{fontSize:13,color:T.inkMid,margin:0,lineHeight:1.65}}><strong style={{color:T.rose}}>Always consult a qualified healthcare provider.</strong> The information below is educational only.</p></div><h3 style={{fontFamily:'Playfair Display,serif',fontSize:19,color:T.ink,margin:'0 0 12px'}}>When to Seek Medical Advice</h3><p style={{fontSize:14,color:T.inkMid,lineHeight:1.7,margin:0}}>{sel.doctor}</p></div>}
+          </Card>
+        </div>
+      )}
+      <div style={{marginTop:28,padding:'14px 18px',background:T.goldLight,borderRadius:12,fontSize:11,color:T.inkLight,lineHeight:1.6}}><strong>Medical disclaimer:</strong> CycleSync provides health information for educational purposes only. Always consult a qualified healthcare professional for personal medical advice.</div>
+    </div>
+  );
+}
+
+/* ---- SETTINGS ---- */
+function SettingsPage({profile,setProfile,setPage}){
+  const[form,setForm]=useState({...profile});
+  const[saved,setSaved]=useState(false);
+  const bmi=calcBMI(form.weight,form.height);
+  const whr=calcWHR(form.waist,form.hip);
+  function save(){setProfile({...form});setSaved(true);setTimeout(()=>setSaved(false),2200);}
+  const info=getCycleInfo(form.lastPeriod,+form.cycleLength,todayISO());
+  const len=+form.cycleLength||28;
+  const{me,fe,oe}=info.len?{me:info.me,fe:info.fe,oe:info.oe}:phaseBounds(len);
+  const phaseBar=[{n:'Menstrual',s:1,e:me,c:T.rose},{n:'Follicular',s:me+1,e:fe,c:T.gold},{n:'Ovulatory',s:fe+1,e:oe,c:T.sage},{n:'Luteal',s:oe+1,e:len,c:T.purple}];
+  return(
+    <div style={{maxWidth:840,margin:'0 auto',padding:'32px 20px'}}>
+      <BackBtn onClick={()=>setPage('home')}/>
+      <SectionHead title="Your Profile" subtitle="Your health data powers personalised recommendations across all modules."/>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+        <Card>
+          <h3 style={{fontFamily:'Playfair Display,serif',fontSize:17,color:T.ink,margin:'0 0 18px'}}>Basic Info</h3>
+          <Input label="Your name" value={form.name||''} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Priya"/>
+          <Input label="Age" type="number" value={form.age||''} onChange={e=>setForm(f=>({...f,age:e.target.value}))} placeholder="25" min="10" max="80"/>
+          <Input label="Weight (kg)" type="number" value={form.weight||''} onChange={e=>setForm(f=>({...f,weight:e.target.value}))} placeholder="60" min="30" max="200"/>
+          <Input label="Height (cm)" type="number" value={form.height||''} onChange={e=>setForm(f=>({...f,height:e.target.value}))} placeholder="165" min="100" max="230"/>
+        </Card>
+        <Card>
+          <h3 style={{fontFamily:'Playfair Display,serif',fontSize:17,color:T.ink,margin:'0 0 18px'}}>Body Measurements</h3>
+          <Input label="Waist circumference (cm)" type="number" value={form.waist||''} onChange={e=>setForm(f=>({...f,waist:e.target.value}))} placeholder="70" min="40" max="180"/>
+          <Input label="Hip circumference (cm)" type="number" value={form.hip||''} onChange={e=>setForm(f=>({...f,hip:e.target.value}))} placeholder="95" min="50" max="200"/>
+          {(bmi||whr)&&(
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:6}}>
+              {bmi&&<div style={{background:T.roseLight,borderRadius:12,padding:14,textAlign:'center'}}><div style={{fontFamily:'Playfair Display,serif',fontSize:28,fontWeight:800,color:T.rose}}>{bmi}</div><div style={{fontSize:10,color:T.inkLight,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em'}}>BMI</div><div style={{fontSize:11,color:T.rose,fontWeight:600,marginTop:2}}>{bmiCat(bmi)}</div></div>}
+              {whr&&<div style={{background:T.purpleLight,borderRadius:12,padding:14,textAlign:'center'}}><div style={{fontFamily:'Playfair Display,serif',fontSize:28,fontWeight:800,color:T.purple}}>{whr}</div><div style={{fontSize:10,color:T.inkLight,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em'}}>WHR</div><div style={{fontSize:11,color:T.purple,fontWeight:600,marginTop:2}}>{whrCat(whr)}</div></div>}
+            </div>
+          )}
+        </Card>
+        <Card style={{gridColumn:'1/-1'}}>
+          <h3 style={{fontFamily:'Playfair Display,serif',fontSize:17,color:T.ink,margin:'0 0 18px'}}>Cycle Settings</h3>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:20}}>
+            <Input label="First day of last period" type="date" value={form.lastPeriod||''} onChange={e=>setForm(f=>({...f,lastPeriod:e.target.value}))}/>
+            <div>
+              <label style={{display:'block',fontSize:11,fontWeight:600,color:T.inkLight,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:8}}>Cycle Length: <strong style={{color:T.rose}}>{form.cycleLength||28} days</strong></label>
+              <input type="range" min="21" max="40" value={form.cycleLength||28} onChange={e=>setForm(f=>({...f,cycleLength:e.target.value}))} style={{width:'100%',accentColor:T.rose}}/>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:T.inkLight}}><span>21 days</span><span>40 days</span></div>
+            </div>
+          </div>
+          {form.lastPeriod&&(
+            <div>
+              <div style={{fontSize:11,fontWeight:700,color:T.inkLight,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:10}}>Your cycle phases</div>
+              <div style={{display:'flex',gap:0,borderRadius:10,overflow:'hidden',height:32}}>
+                {phaseBar.map(p=>{const w=((p.e-p.s+1)/len)*100;const isCur=info.phase&&PHASE_META[info.phase].label===p.n;return(
+                  <div key={p.n} style={{width:`${w}%`,background:isCur?p.c:p.c+'60',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:700,color:'white',letterSpacing:'0.04em'}}>{p.n.slice(0,3).toUpperCase()}</div>
+                );})}
+              </div>
+              {info.phase&&<p style={{fontSize:12,color:T.inkMid,marginTop:8}}>Today is <strong>cycle day {info.day}</strong> — you are in your <strong style={{color:PHASE_META[info.phase].color}}>{PHASE_META[info.phase].label} phase</strong>.</p>}
+            </div>
+          )}
+        </Card>
+      </div>
+      <button onClick={save} style={{marginTop:20,width:'100%',padding:14,background:T.rose,color:'white',border:'none',borderRadius:12,fontWeight:700,fontSize:15,cursor:'pointer'}}>{saved?'✓ Profile Saved!':'Save Profile'}</button>
+    </div>
+  );
+}
+
+/* ---- FOOTER ---- */
+function Footer(){
+  return(
+    <footer style={{background:T.ink,padding:'36px 24px 24px',marginTop:60,textAlign:'center'}}>
+      <div style={{maxWidth:600,margin:'0 auto'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:10,marginBottom:14}}>
+          <div style={{width:28,height:28,borderRadius:'50%',background:T.rose,display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{color:'white',fontSize:14}}>🌸</span></div>
+          <span style={{fontFamily:'Playfair Display,serif',fontSize:19,fontWeight:700,color:'white'}}>CycleSync</span>
+        </div>
+        <p style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:6}}>A free, elegant companion for your hormonal health journey.</p>
+        <p style={{fontSize:11,color:'rgba(255,255,255,0.25)',margin:'0 0 18px'}}>Cycle tracking · AI nutrition · Ayurveda · Yoga · Wellness guidance</p>
+        <div style={{borderTop:'1px solid rgba(255,255,255,0.1)',paddingTop:16}}>
+          <p style={{fontSize:11,color:'rgba(255,255,255,0.3)',margin:0}}>© 2026 CycleSync — Developed by <span style={{color:'#F8E8DE',fontWeight:600}}>Ruchika Sukhwal</span></p>
+          <p style={{fontSize:10,color:'rgba(255,255,255,0.18)',marginTop:6}}>For informational purposes only. Not a substitute for professional medical advice.</p>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+/* ---- ROOT APP ---- */
+const DEFAULT={name:'',age:'',weight:'',height:'',waist:'',hip:'',lastPeriod:'',cycleLength:'28'};
+function App(){
+  const[page,setPage]=useLS('cs_page','home');
+  const[profile,setProfile]=useLS('cs_profile',DEFAULT);
+  const[logs,setLogs]=useLS('cs_logs',{});
+  const pages={
+    home:<HomePage profile={profile} logs={logs} setPage={setPage}/>,
+    tracker:<TrackerPage profile={profile} logs={logs} setLogs={setLogs} setPage={setPage}/>,
+    recipes:<RecipesPage profile={profile} logs={logs} setLogs={setLogs} setPage={setPage}/>,
+    mealprep:<MealPrepPage profile={profile} logs={logs} setLogs={setLogs} setPage={setPage}/>,
+    yoga:<YogaPage profile={profile} setPage={setPage}/>,
+    ayurveda:<AyurvedaPage profile={profile} setPage={setPage}/>,
+    disorders:<DisordersPage setPage={setPage}/>,
+    settings:<SettingsPage profile={profile} setProfile={setProfile} setPage={setPage}/>,
+  };
+  return(
+    <div>
+      {!profile.lastPeriod&&page==='home'&&(
+        <div style={{position:'fixed',bottom:20,right:20,zIndex:200,background:'white',border:`1.5px solid ${T.border}`,borderRadius:14,padding:'14px 18px',boxShadow:`0 8px 32px ${T.shadowMd}`,maxWidth:260}}>
+          <div style={{fontSize:18,marginBottom:5}}>👋</div>
+          <div style={{fontSize:13,fontWeight:600,color:T.ink,marginBottom:4}}>Set up your profile</div>
+          <div style={{fontSize:11,color:T.inkLight,marginBottom:10}}>Add your cycle date to unlock personalised recommendations.</div>
+          <button onClick={()=>setPage('settings')} style={{width:'100%',padding:8,background:T.rose,color:'white',border:'none',borderRadius:8,fontWeight:600,fontSize:12,cursor:'pointer'}}>Set up Profile</button>
+        </div>
+      )}
+      <Navbar page={page} setPage={setPage} profile={profile}/>
+      <main style={{minHeight:'calc(100vh - 62px - 160px)'}}>{pages[page]||pages['home']}</main>
+      <Footer/>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
