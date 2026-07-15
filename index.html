@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>CycleSync — Menstrual Health Companion</title>
+<title>NariSync — Menstrual Health Companion</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -104,7 +104,7 @@ function Navbar({page,setPage,profile}){
           <div style={{width:32,height:32,borderRadius:'50%',background:T.rose,display:'flex',alignItems:'center',justifyContent:'center'}}>
             <span style={{color:'white',fontSize:16}}>🌸</span>
           </div>
-          <span style={{fontFamily:'Playfair Display,serif',fontWeight:700,fontSize:18,color:T.rose}}>CycleSync</span>
+          <span style={{fontFamily:'Playfair Display,serif',fontWeight:700,fontSize:18,color:T.rose}}>NariSync</span>
         </button>
         <div style={{display:'flex',gap:2,flex:1,overflowX:'auto',paddingBottom:2}}>
           {NAV.map(n=>(
@@ -141,7 +141,7 @@ function HomePage({profile,logs,setPage}){
         <div style={{position:'absolute',top:-60,right:-60,width:200,height:200,borderRadius:'50%',background:'rgba(255,255,255,0.04)'}}/>
         <div style={{position:'relative',maxWidth:680,margin:'0 auto'}}>
           <p style={{color:'rgba(255,255,255,0.5)',fontSize:11,letterSpacing:'0.2em',textTransform:'uppercase',margin:'0 0 10px'}}>{new Date(today+'T00:00:00').toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</p>
-          <h1 style={{fontFamily:'Playfair Display,serif',fontSize:'clamp(26px,5vw,42px)',fontWeight:800,color:'white',margin:'0 0 14px',lineHeight:1.15}}>{profile.name?`Good day, ${profile.name}`:'Welcome to CycleSync'}</h1>
+          <h1 style={{fontFamily:'Playfair Display,serif',fontSize:'clamp(26px,5vw,42px)',fontWeight:800,color:'white',margin:'0 0 14px',lineHeight:1.15}}>{profile.name?`Good day, ${profile.name}`:'Welcome to NariSync'}</h1>
           {phase?(
             <div>
               <div style={{display:'inline-flex',alignItems:'center',gap:10,background:'rgba(255,255,255,0.12)',borderRadius:30,padding:'10px 24px',marginBottom:16}}>
@@ -173,7 +173,7 @@ function HomePage({profile,logs,setPage}){
             <p style={{margin:0,fontSize:14,color:T.inkMid}}>👋 <strong>Get started:</strong> Add your last period date in <button onClick={()=>setPage('settings')} style={{background:'none',border:'none',color:T.rose,fontWeight:700,cursor:'pointer',textDecoration:'underline',fontSize:14}}>Settings</button> to unlock personalised recommendations across all modules.</p>
           </Card>
         )}
-        <h3 style={{fontFamily:'Playfair Display,serif',fontSize:20,color:T.ink,marginBottom:16}}>Explore CycleSync</h3>
+        <h3 style={{fontFamily:'Playfair Display,serif',fontSize:20,color:T.ink,marginBottom:16}}>Explore NariSync</h3>
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:14,marginBottom:28}}>
           {[{k:'tracker',i:'📅',t:'Cycle Tracker',d:'Log period, sleep, mood & symptoms',c:T.rose},{k:'recipes',i:'🥗',t:'Recipe Generator',d:'Phase-personalised recipes by ingredient',c:T.gold},{k:'mealprep',i:'📋',t:'Meal Planner',d:'Weekly plan + shopping list',c:T.sage},{k:'yoga',i:'🧘',t:'Yoga & Movement',d:'Phase-specific routines with video guides',c:T.purple},{k:'ayurveda',i:'🌿',t:'Ayurveda',d:'Seed cycling, herbal teas & rituals',c:'#5A8A75'},{k:'disorders',i:'💙',t:'Wellness Guide',d:'PCOS, endometriosis, menopause & more',c:'#5572A8'}].map(m=>(
             <button key={m.k} onClick={()=>setPage(m.k)} style={{textAlign:'left',background:T.white,border:`1px solid ${T.border}`,borderRadius:16,padding:18,cursor:'pointer',transition:'all 0.2s',boxShadow:`0 2px 10px ${T.shadow}`}}
@@ -837,12 +837,12 @@ function Footer(){
       <div style={{maxWidth:600,margin:'0 auto'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:10,marginBottom:14}}>
           <div style={{width:28,height:28,borderRadius:'50%',background:T.rose,display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{color:'white',fontSize:14}}>🌸</span></div>
-          <span style={{fontFamily:'Playfair Display,serif',fontSize:19,fontWeight:700,color:'white'}}>CycleSync</span>
+          <span style={{fontFamily:'Playfair Display,serif',fontSize:19,fontWeight:700,color:'white'}}>NariSync</span>
         </div>
         <p style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:6}}>A free, elegant companion for your hormonal health journey.</p>
         <p style={{fontSize:11,color:'rgba(255,255,255,0.25)',margin:'0 0 18px'}}>Cycle tracking · AI nutrition · Ayurveda · Yoga · Wellness guidance</p>
         <div style={{borderTop:'1px solid rgba(255,255,255,0.1)',paddingTop:16}}>
-          <p style={{fontSize:11,color:'rgba(255,255,255,0.3)',margin:0}}>© 2026 CycleSync — Developed by <span style={{color:'#F8E8DE',fontWeight:600}}>Ruchika Sukhwal</span></p>
+          <p style={{fontSize:11,color:'rgba(255,255,255,0.3)',margin:0}}>© 2026 NariSync — Developed by <span style={{color:'#F8E8DE',fontWeight:600}}>Ruchika Sukhwal</span></p>
           <p style={{fontSize:10,color:'rgba(255,255,255,0.18)',marginTop:6}}>For informational purposes only. Not a substitute for professional medical advice.</p>
         </div>
       </div>
