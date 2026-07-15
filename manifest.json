@@ -13,7 +13,7 @@
   "categories": ["health", "lifestyle"],
   "icons": [
     {
-      "src": "/icon-512.png",
+      "src": "https://raw.githubusercontent.com/researchruchika286-netizen/cyclesync/main/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable any"
