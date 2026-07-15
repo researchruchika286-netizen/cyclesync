@@ -18,14 +18,5 @@
       "type": "image/png",
       "purpose": "maskable any"
     }
-  ],
-  "screenshots": [
-    {
-      "src": "https://placehold.co/1080x1920/7C2D43/F8E8DE?text=NariSync",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "NariSync Home Screen"
-    }
   ]
 }
