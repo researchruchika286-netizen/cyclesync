@@ -1,7 +1,7 @@
 {
   "name": "NariSync — Menstrual Health Companion",
   "short_name": "NariSync",
-  "description": "Free menstrual health app with cycle tracking, AI recipes, yoga and Ayurveda.",
+  "description": "Free menstrual health app with cycle tracking, AI recipes, yoga and Ayurveda",
   "start_url": "/",
   "id": "/",
   "display": "standalone",
@@ -11,6 +11,14 @@
   "scope": "/",
   "lang": "en",
   "categories": ["health", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
   "screenshots": [
     {
       "src": "https://placehold.co/1080x1920/7C2D43/F8E8DE?text=NariSync",
@@ -18,20 +26,6 @@
       "type": "image/png",
       "form_factor": "narrow",
       "label": "NariSync Home Screen"
-    }
-  ],
-  "icons": [
-    {
-      "src": "https://placehold.co/192x192/7C2D43/F8E8DE?text=NS",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "https://placehold.co/512x512/7C2D43/F8E8DE?text=NS",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable any"
     }
   ]
 }
