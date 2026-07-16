@@ -8,6 +8,14 @@
   ],
   "routes": [
     {
+      "src": "/.well-known/assetlinks.json",
+      "dest": "/.well-known/assetlinks.json",
+      "headers": {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      }
+    },
+    {
       "src": "/manifest.json",
       "dest": "/manifest.json",
       "headers": {
@@ -28,6 +36,7 @@
       "src": "/icon-512.png",
       "dest": "/icon-512.png",
       "headers": {
+        "Content-Type": "image/png",
         "Access-Control-Allow-Origin": "*"
       }
     },
