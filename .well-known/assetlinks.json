@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.narisync.app",
+        "sha256_cert_fingerprints": ["67:51:8B:0A:3D:A1:98:9B:2F:14:C2:84:31:87:0D:D0:78:3C:BF:8D:3D:44:D3:B9:FB:26:CA:B7:61:D7:A7:D8"]
+      }
+    }]
