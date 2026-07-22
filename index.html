@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NariSync — Menstrual Health Companion</title>
 <link rel="manifest" href="/manifest.json"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-title" content="NariSync"/>
 <meta name="theme-color" content="#7C2D43"/>
-<title>NariSync — Menstrual Health Companion</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -23,7 +23,6 @@ input[type=range]{-webkit-appearance:none;appearance:none;height:4px;border-radi
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#7C2D43;cursor:pointer;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.2)}
 input,select,textarea{font-family:'Inter',sans-serif}
 button{font-family:'Inter',sans-serif;cursor:pointer}
-iframe{display:block}
 ::-webkit-scrollbar{width:6px}
 ::-webkit-scrollbar-track{background:#f1f1f1}
 ::-webkit-scrollbar-thumb{background:#E8D8D0;border-radius:3px}
@@ -32,7 +31,7 @@ iframe{display:block}
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const{useState,useEffect,useMemo}=React;
+const{useState,useEffect}=React;
 
 /* ---- tokens ---- */
 const T={rose:'#7C2D43',roseDark:'#5C1D30',roseMid:'#A8425A',rosePale:'#F8E8DE',roseLight:'#FDF5F2',cream:'#FEFAF6',gold:'#C98E4F',goldLight:'#F5E9D5',sage:'#8FA15C',sageLight:'#EFF5E4',purple:'#6E5A9C',purpleLight:'#F0EDF9',ink:'#1A0E14',inkMid:'#4A3040',inkLight:'#8A7080',border:'#E8D8D0',white:'#FFFFFF',shadow:'rgba(124,45,67,0.08)',shadowMd:'rgba(124,45,67,0.14)'};
@@ -72,11 +71,6 @@ const Card=({children,style={}})=>(
 const Badge=({label,color=T.rose,bg=T.rosePale})=>(
   <span style={{display:'inline-block',padding:'3px 10px',borderRadius:20,fontSize:11,fontWeight:600,letterSpacing:'0.06em',textTransform:'uppercase',color,background:bg}}>{label}</span>
 );
-const Btn=({children,onClick,style={},variant='primary',disabled=false})=>{
-  const base={padding:'12px 24px',border:'none',borderRadius:12,fontWeight:700,fontSize:14,cursor:disabled?'default':'pointer',transition:'all 0.2s',...style};
-  const styles={primary:{...base,background:T.rose,color:T.white},outline:{...base,background:'none',border:`1.5px solid ${T.border}`,color:T.inkMid},sage:{...base,background:T.sageLight,color:T.sage,border:`1px solid ${T.sage}40`}};
-  return<button onClick={onClick} disabled={disabled} style={styles[variant]||base}>{children}</button>;
-};
 const Input=({label,value,onChange,type='text',placeholder,min,max})=>(
   <div style={{marginBottom:20}}>
     <label style={{display:'block',fontSize:12,fontWeight:600,color:T.inkLight,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:6}}>{label}</label>
@@ -96,12 +90,69 @@ const SectionHead=({title,subtitle,accent=T.rose})=>(
   </div>
 );
 
+/* ---- RECIPES ---- */
+const RECIPES=[
+  {id:'r1',name:'Iron-Boost Beetroot & Spinach Poha',meal:'breakfast',phase:['menstrual'],time:15,cal:290,tags:['iron-rich','warming'],ing:['poha (flattened rice)','beetroot','spinach','onion','mustard seeds','peanuts','lemon'],
+    steps:['Rinse 1 cup of poha under water and set aside for 5 minutes to soften.','Grate 1 small beetroot and roughly chop a large handful of spinach leaves.','Heat 1 tablespoon oil in a pan on medium heat. Add mustard seeds and wait for them to splutter.','Add finely chopped onion and cook until soft and golden, about 3 minutes.','Add the grated beetroot and chopped spinach. Cook for 4 minutes, stirring occasionally.','Add the softened poha and peanuts. Mix everything well, season with salt to taste.','Squeeze half a lemon over the top, mix once more and serve warm.'],
+    why:'Beetroot and spinach replace iron lost during your period. Peanuts add protein to keep you full. This warm dish is easy on digestion during menstruation.'},
+  {id:'r2',name:'Warm Cinnamon Oats with Banana',meal:'breakfast',phase:['menstrual'],time:10,cal:260,tags:['warming','magnesium-rich'],ing:['oats','banana','milk','cinnamon','honey','walnuts'],
+    steps:['Pour 1 cup of milk (dairy or plant-based) into a small saucepan and bring to a gentle simmer.','Add half a cup of rolled oats and stir well. Cook on low heat for 5 minutes, stirring every minute.','Mash half a ripe banana with a fork and stir it into the oats.','Add a good pinch of cinnamon and stir everything together.','Pour into a bowl, top with a small handful of chopped walnuts and a drizzle of honey.','Serve immediately while warm.'],
+    why:'Banana provides magnesium which helps relax the uterine muscles and ease cramping. Cinnamon steadies blood sugar. The warmth of this dish is soothing during menstruation.'},
+  {id:'r3',name:'Golden Turmeric Quinoa Porridge',meal:'breakfast',phase:['follicular','any'],time:20,cal:310,tags:['anti-inflammatory','protein-rich'],ing:['quinoa','milk','turmeric','ginger','honey','almonds'],
+    steps:['Rinse half a cup of quinoa under cold water using a fine strainer.','Add quinoa and 1 cup of milk to a small saucepan over medium heat.','Grate a small piece of fresh ginger (about half a teaspoon) and add to the pan along with a pinch of turmeric.','Bring to a gentle boil, then reduce heat to low. Stir frequently for 15 minutes until the quinoa is soft and the mixture is creamy.','Pour into a bowl. Scatter slivered almonds on top and drizzle with a little honey.','Eat while warm.'],
+    why:'Quinoa is a complete protein source, supporting the energy build-up of your follicular phase. Turmeric and ginger are powerful anti-inflammatory ingredients that support hormone balance.'},
+  {id:'r4',name:'Avocado & Egg Power Toast',meal:'breakfast',phase:['ovulatory','any'],time:12,cal:340,tags:['protein-rich'],ing:['whole grain bread','avocado','eggs','chilli flakes','lemon','tomato'],
+    steps:['Toast 2 slices of whole grain bread until golden and crisp.','While bread toasts, cut an avocado in half, remove the stone and scoop the flesh into a bowl.','Add a squeeze of lemon juice, a pinch of chilli flakes and a pinch of salt to the avocado. Mash with a fork to a rough, chunky paste.','Fry or poach one egg to your liking. For a poached egg: bring a small pan of water to a gentle simmer, add a splash of vinegar, swirl the water and slide in the cracked egg. Cook 3 minutes for a runny yolk.','Spread the mashed avocado generously over both toast slices.','Top with the egg and sliced fresh tomato. Add extra chilli flakes if desired.'],
+    why:'This combination of healthy fats, protein and complex carbohydrates gives sustained energy that matches your naturally high energy levels around ovulation.'},
+  {id:'r5',name:'Sweet Potato & Almond Butter Bowl',meal:'breakfast',phase:['luteal'],time:20,cal:320,tags:['magnesium-rich','warming'],ing:['sweet potato','almond butter','cinnamon','pumpkin seeds','honey'],
+    steps:['Peel and cube one medium sweet potato into small pieces.','Place in a steamer basket over boiling water, cover and steam for 15 minutes until completely soft. Alternatively, microwave on high for 5 minutes.','Transfer the cooked sweet potato to a bowl and mash lightly with a fork — leave some texture.','Add one tablespoon of almond butter and a generous pinch of cinnamon. Stir everything together gently.','Scatter a tablespoon of pumpkin seeds over the top and drizzle with a little honey.','Serve warm as a comforting breakfast.'],
+    why:'Sweet potato provides complex carbohydrates that steady blood sugar and reduce luteal phase cravings. Almond butter and pumpkin seeds deliver magnesium, which eases PMS symptoms and supports mood.'},
+  {id:'r6',name:'Comforting Lentil & Spinach Dal',meal:'lunch',phase:['menstrual'],time:30,cal:420,tags:['iron-rich','protein-rich','warming'],ing:['red lentils','spinach','brown rice','ginger','garlic','turmeric','cumin','ghee'],
+    steps:['Rinse 1 cup of red lentils under cold water until the water runs clear.','Place lentils in a pan with 3 cups of water and a half teaspoon of turmeric. Bring to a boil then simmer on low heat for 15 minutes, stirring occasionally, until lentils are completely soft and beginning to dissolve.','Meanwhile, cook brown rice according to packet directions (usually 25 minutes with double the water).','In a separate small pan, heat 1 tablespoon of ghee over medium heat. Add half a teaspoon of cumin seeds and let them sizzle for 30 seconds.','Add 2 cloves of finely chopped garlic and a thumb-sized piece of grated ginger. Cook for 1 minute until fragrant.','Pour this spiced ghee mixture into the cooked lentils and stir well.','Add 2 large handfuls of roughly chopped spinach to the dal. Stir and cook for 3 minutes until wilted.','Season with salt, serve the dal over brown rice and eat hot.'],
+    why:'Red lentils and spinach are among the best plant sources of iron, helping replenish what is lost during menstruation. Ghee helps the body absorb the iron and soothes the digestive system.'},
+  {id:'r7',name:'Quinoa Veggie Power Bowl',meal:'lunch',phase:['follicular','any'],time:25,cal:410,tags:['protein-rich','high-fiber'],ing:['quinoa','broccoli','chickpeas','carrot','tahini','lemon'],
+    steps:['Rinse three-quarters of a cup of quinoa under cold water.','Cook quinoa in one and a half cups of water: bring to boil, cover, reduce heat to low and cook for 15 minutes until water is absorbed. Fluff with a fork.','Cut broccoli into small florets and slice one carrot into thin rounds. Steam together for 5 minutes until just tender but still bright green.','Warm the chickpeas in a small pan with a pinch of cumin and salt for 3 minutes.','To make the dressing: mix 2 tablespoons of tahini with the juice of half a lemon, 1 tablespoon of water and a pinch of salt. Stir until smooth and pourable.','Assemble the bowl: place quinoa as a base, top with steamed vegetables and chickpeas.','Drizzle the tahini dressing generously over everything and serve.'],
+    why:'This bowl delivers balanced protein and fibre that supports your rising oestrogen and builds steady energy through the follicular phase. Chickpeas also contain B vitamins important for hormone production.'},
+  {id:'r8',name:'Mediterranean Salmon & Couscous',meal:'lunch',phase:['ovulatory','any'],time:25,cal:460,tags:['protein-rich','anti-inflammatory'],ing:['salmon fillet','couscous','cucumber','tomato','olive oil','lemon','feta cheese'],
+    steps:['Place one cup of couscous in a heatproof bowl. Pour one cup of boiling water over it and add a pinch of salt and half a tablespoon of olive oil. Cover with a plate and leave for 5 minutes.','Season a salmon fillet on both sides with salt, pepper and a squeeze of lemon.','Heat a pan over medium-high heat with a little olive oil. Place the salmon skin-side down and cook for 4 minutes without moving it. Flip and cook a further 3 minutes.','While salmon cooks, dice half a cucumber and one tomato into small cubes. Crumble a small amount of feta cheese.','Fluff the couscous with a fork to separate all the grains. Add the diced cucumber, tomato and feta. Toss with a drizzle of olive oil and lemon juice.','Serve the salmon over the couscous with a lemon wedge on the side.'],
+    why:'Salmon is the richest food source of anti-inflammatory omega-3 fatty acids, which are particularly important during ovulation. The complete protein supports your peak energy phase.'},
+  {id:'r9',name:'Sweet Potato Black Bean Bowl',meal:'lunch',phase:['luteal'],time:30,cal:430,tags:['magnesium-rich','high-fiber'],ing:['sweet potato','black beans','avocado','corn','lime','cumin','olive oil'],
+    steps:['Preheat your oven to 200°C (400°F).','Peel and cube one large sweet potato into 2cm pieces. Toss with one tablespoon of olive oil, half a teaspoon of cumin and a pinch of salt.','Spread on a baking tray in a single layer and roast for 20 minutes, turning halfway, until golden and soft.','Drain and rinse one tin of black beans. Warm in a small pan with a pinch of cumin and salt for 3 minutes.','Warm the corn (tinned is fine) in the same pan for 2 minutes.','Slice one ripe avocado.','Build your bowl: roasted sweet potato as the base, then black beans, corn and avocado slices on top.','Squeeze a whole lime over everything and add a little extra cumin if desired.'],
+    why:'Complex carbohydrates from sweet potato and beans help manage the intense cravings of the luteal phase. Black beans and pumpkin seeds are excellent sources of magnesium which reduces PMS mood symptoms.'},
+  {id:'r10',name:'Ginger Turmeric Vegetable Soup',meal:'dinner',phase:['menstrual'],time:25,cal:240,tags:['warming','anti-inflammatory'],ing:['carrot','pumpkin','ginger','turmeric','garlic','vegetable broth','coconut milk'],
+    steps:['Peel and roughly chop 2 carrots and a 300g piece of pumpkin or butternut squash into chunks.','Finely chop 3 cloves of garlic and grate a thumb-sized piece of fresh ginger.','Heat a tablespoon of oil in a large pan over medium heat. Add garlic and ginger and cook for 1 minute until fragrant.','Add the chopped carrots and pumpkin. Stir to coat in the garlic and ginger.','Pour in 600ml of vegetable broth. Add half a teaspoon of turmeric. Bring to a boil then simmer for 15 minutes until vegetables are completely soft.','Use a blender or hand blender to blend the soup until completely smooth and silky.','Stir in 3 tablespoons of coconut milk for creaminess. Season with salt. Reheat gently if needed and serve hot.'],
+    why:'This soup is deeply warming and soothing during menstruation. Ginger is clinically shown to reduce period pain by blocking prostaglandins. Turmeric reduces inflammation. The warm liquid eases bloating and cramps.'},
+  {id:'r11',name:'Khichdi with Ghee',meal:'dinner',phase:['menstrual'],time:30,cal:350,tags:['warming','light'],ing:['white rice','moong dal (split yellow lentils)','ghee','cumin seeds','turmeric','fresh ginger'],
+    steps:['Measure half a cup each of rice and moong dal. Rinse together in cold water 3 times until the water runs clear.','Place the rinsed rice and dal in a pressure cooker or large pot with 3 cups of water, half a teaspoon of turmeric and a small piece of grated ginger.','For a pressure cooker: cook on high for 3 whistles then leave to release pressure naturally. For a regular pot: bring to boil, cover and simmer on low for 25 minutes until completely soft and porridge-like. Add more water if needed.','The cooked khichdi should have a soft, thick, almost mushy consistency — this is correct.','In a very small pan, heat 1 tablespoon of ghee over high heat until it shimmers. Add half a teaspoon of cumin seeds and let them sizzle and darken for 30 seconds.','Pour this hot ghee and cumin tempering directly over the khichdi. Season with salt.','Stir gently and serve immediately in a bowl.'],
+    why:'Khichdi is the classic Ayurvedic comfort food for menstruation. It is the easiest dish for the body to digest, requiring minimal energy, leaving you with more resources for healing. Ghee nourishes and soothes the gut lining.'},
+  {id:'r12',name:'Stir-fried Veggies with Quinoa',meal:'dinner',phase:['follicular','any'],time:20,cal:360,tags:['high-fiber','protein-rich'],ing:['quinoa','zucchini','bell pepper','mushroom','garlic','soy sauce','sesame oil'],
+    steps:['Rinse and cook half a cup of quinoa: place in a pan with 1 cup of water, bring to boil, cover and simmer 15 minutes until all water is absorbed.','Slice one zucchini into half-moons, dice one bell pepper, and slice a handful of mushrooms.','Mince 2 cloves of garlic.','Heat 1 tablespoon of oil in a wok or large frying pan over high heat until very hot.','Add the garlic and stir for 30 seconds. Add all the vegetables and stir-fry on high heat for 5 minutes, keeping them moving constantly.','Add 2 tablespoons of soy sauce and a few drops of sesame oil. Toss everything together.','Serve the stir-fried vegetables over the cooked quinoa immediately while hot.'],
+    why:'A light, energising meal that matches the building energy of your follicular phase. High-heat cooking preserves the vegetables nutrients while creating satisfying flavour.'},
+  {id:'r13',name:'Baked Salmon with Greens',meal:'dinner',phase:['ovulatory','any'],time:25,cal:420,tags:['protein-rich','anti-inflammatory'],ing:['salmon fillet','spinach','kale','garlic','olive oil','lemon'],
+    steps:['Preheat oven to 200°C (400°F).','Place the salmon fillet on a baking tray lined with foil or baking paper.','Drizzle with olive oil, season generously with salt and pepper and squeeze half a lemon over the fish.','Bake for 12 to 15 minutes depending on thickness. The salmon should flake easily when pressed with a fork and be opaque throughout.','While salmon bakes, heat a pan over medium heat with a little olive oil.','Add 2 minced garlic cloves and cook for 30 seconds.','Add large handfuls of spinach and kale. Toss and cook for 3 minutes until wilted. Season with salt.','Serve the baked salmon directly over the wilted greens with a lemon wedge.'],
+    why:'Salmon is packed with omega-3 fatty acids and high-quality protein that supports peak performance during ovulation. Leafy greens provide iron and folate that support hormone production.'},
+  {id:'r14',name:'Comforting Red Lentil Stew',meal:'dinner',phase:['luteal'],time:30,cal:380,tags:['magnesium-rich','warming'],ing:['red lentils','sweet potato','coconut milk','ginger','cumin','spinach','vegetable broth'],
+    steps:['Peel and dice one medium sweet potato into small cubes.','Rinse three-quarters of a cup of red lentils.','Grate a thumb-sized piece of fresh ginger.','Heat a tablespoon of oil in a large pan over medium heat. Add half a teaspoon of cumin seeds and let sizzle for 30 seconds.','Add the grated ginger and stir for 30 seconds.','Add the diced sweet potato and rinsed lentils. Stir to combine.','Pour in one tin of coconut milk and 400ml of vegetable broth. Bring to a boil.','Reduce heat to low and simmer uncovered for 20 minutes, stirring occasionally, until lentils are completely soft and the stew is thick.','Stir in 2 large handfuls of spinach. Cook for 2 more minutes until wilted. Season with salt and serve hot.'],
+    why:'A grounding, nourishing stew designed to ease the tension of the luteal phase. Lentils and sweet potato provide magnesium which reduces PMS anxiety and supports restful sleep. Coconut milk is calming and anti-inflammatory.'},
+  {id:'r15',name:'Date, Almond & Flax Energy Balls',meal:'snack',phase:['any'],time:15,cal:150,tags:['magnesium-rich'],ing:['medjool dates','almonds','ground flaxseed','cocoa powder','desiccated coconut'],
+    steps:['Remove the stones from 10 medjool dates.','Place dates and 100g of almonds in a food processor. Blend until the mixture sticks together when pressed between your fingers.','Add 2 tablespoons of ground flaxseed and 1 tablespoon of cocoa powder. Blend again briefly to combine.','If the mixture is too dry, add 1 teaspoon of water. If too sticky, add more almonds.','Spread desiccated coconut on a flat plate.','Roll the mixture into small balls about the size of a large marble using your palms.','Roll each ball in the coconut to coat. Place on a tray and refrigerate for 20 minutes to firm up.','Store in the fridge in an airtight container for up to 1 week.'],
+    why:'These require no cooking and provide a natural energy boost for any phase of your cycle. Dates and almonds are rich in magnesium and healthy fats. Flaxseed supports hormone balance throughout the month.'},
+  {id:'r16',name:'Dark Chocolate & Walnut Bites',meal:'snack',phase:['luteal'],time:10,cal:170,tags:['magnesium-rich'],ing:['dark chocolate (70%+)','walnuts','sea salt flakes'],
+    steps:['Break 100g of dark chocolate (minimum 70% cocoa) into small pieces and place in a heatproof bowl.','Bring a small pan of water to a simmer. Place the bowl over the pan without the bowl touching the water. Stir chocolate until completely melted and smooth.','Alternatively, melt in a microwave in 30-second bursts, stirring between each burst.','Roughly chop 50g of walnuts.','Remove chocolate from heat. Stir in the chopped walnuts.','Spoon small dollops onto a tray lined with baking paper.','Immediately sprinkle a few sea salt flakes over each one.','Leave to set at room temperature for 30 minutes, or in the fridge for 10 minutes.'],
+    why:'Dark chocolate is one of the most concentrated food sources of magnesium, which directly reduces PMS tension and mood symptoms. This satisfies the intense chocolate cravings of the luteal phase with real nutritional benefit rather than empty sugar.'},
+  {id:'r17',name:'Honey-Roasted Pumpkin Seeds',meal:'snack',phase:['menstrual','follicular'],time:12,cal:140,tags:['iron-rich','magnesium-rich'],ing:['raw pumpkin seeds','honey','cinnamon','sea salt'],
+    steps:['Preheat oven to 180°C (350°F) and line a small baking tray with baking paper.','Place half a cup of raw pumpkin seeds in a bowl.','Add 1 teaspoon of honey, a good pinch of cinnamon and a pinch of sea salt. Toss well to coat all the seeds.','Spread in a single layer on the prepared baking tray.','Roast for 8 to 10 minutes, checking at 8 minutes. They should be golden and beginning to pop. Watch carefully as they can burn quickly.','Remove from oven and leave to cool completely on the tray — they will crisp up as they cool.','Store in an airtight jar at room temperature for up to 2 weeks.'],
+    why:'Part of the seed cycling protocol for the first half of your cycle. Pumpkin seeds are exceptionally rich in zinc, magnesium and iron. Zinc supports the development of the follicle and the production of progesterone.'},
+  {id:'r18',name:'Greek Yogurt Berry Parfait',meal:'snack',phase:['follicular','any'],time:8,cal:220,tags:['protein-rich','light'],ing:['Greek yogurt','mixed berries','ground flaxseed','honey','granola'],
+    steps:['Take a tall glass or bowl.','Place 2 tablespoons of granola at the bottom as the first layer.','Add a large spoonful of Greek yogurt (about 4 tablespoons) on top of the granola.','Scatter a small handful of mixed berries over the yogurt.','Sprinkle 1 tablespoon of ground flaxseed over the berries.','Add another layer of yogurt, then berries on top.','Finish with a thin drizzle of honey over everything.','Eat immediately or refrigerate covered for up to 2 hours.'],
+    why:'Greek yogurt is rich in protein and probiotics that support the gut-hormone axis. Flaxseed provides lignans that help the body metabolise oestrogen more efficiently as it rises in the follicular phase.'},
+];
+
 /* ---- NAV ---- */
 const NAV=[{k:'home',l:'Home',i:'🏠'},{k:'tracker',l:'Tracker',i:'📅'},{k:'recipes',l:'Recipes',i:'🥗'},{k:'mealprep',l:'Meal Plan',i:'📋'},{k:'yoga',l:'Yoga',i:'🧘'},{k:'ayurveda',l:'Ayurveda',i:'🌿'},{k:'disorders',l:'Wellness',i:'💙'}];
 
 function Navbar({page,setPage,profile}){
   const{phase}=getCycleInfo(profile.lastPeriod,+profile.cycleLength);
-  const[open,setOpen]=useState(false);
   return(
     <nav style={{position:'sticky',top:0,zIndex:100,background:'rgba(254,250,246,0.95)',backdropFilter:'blur(12px)',borderBottom:`1px solid ${T.border}`,padding:'0 16px'}}>
       <div style={{maxWidth:1100,margin:'0 auto',display:'flex',alignItems:'center',height:62,gap:8}}>
@@ -120,7 +171,7 @@ function Navbar({page,setPage,profile}){
         </div>
         <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
           {phase&&<div style={{background:PHASE_META[phase].color+'18',border:`1px solid ${PHASE_META[phase].color}40`,borderRadius:20,padding:'4px 10px',color:PHASE_META[phase].color,fontSize:11,fontWeight:600}}>{PHASE_META[phase].label}</div>}
-          <button onClick={()=>setPage('settings')} style={{width:34,height:34,borderRadius:'50%',background:T.border,border:'none',cursor:'pointer',fontSize:15}}>⚙️</button>
+          <button onClick={()=>setPage('settings')} title="Settings" style={{width:34,height:34,borderRadius:'50%',background:T.border,border:'none',cursor:'pointer',fontSize:15}}>⚙️</button>
         </div>
       </div>
     </nav>
@@ -129,6 +180,7 @@ function Navbar({page,setPage,profile}){
 
 /* ---- HOME ---- */
 function HomePage({profile,logs,setPage}){
+  const[popupDismissed,setPopupDismissed]=useState(false);
   const today=todayISO();
   const{day,phase,len}=getCycleInfo(profile.lastPeriod,+profile.cycleLength,today);
   const todayLog=logs[today]||{};
@@ -158,7 +210,7 @@ function HomePage({profile,logs,setPage}){
             </div>
           ):(
             <div>
-              <p style={{color:'rgba(255,255,255,0.7)',fontSize:15}}>Set up your profile to begin tracking.</p>
+              <p style={{color:'rgba(255,255,255,0.7)',fontSize:15}}>Set up your profile to begin tracking, or explore the app first.</p>
               <button onClick={()=>setPage('settings')} style={{background:'white',color:T.rose,border:'none',borderRadius:12,padding:'12px 28px',fontWeight:700,cursor:'pointer',fontSize:14}}>Set up Profile →</button>
             </div>
           )}
@@ -173,14 +225,9 @@ function HomePage({profile,logs,setPage}){
             {todayLog.sleep&&<Card style={{textAlign:'center',padding:18}}><div style={{fontFamily:'Playfair Display,serif',fontSize:34,fontWeight:800,color:T.gold}}>{todayLog.sleep}</div><div style={{fontSize:10,color:T.inkLight,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',marginTop:4}}>Sleep hrs</div></Card>}
           </div>
         )}
-        {!profile.lastPeriod&&(
-          <Card style={{marginBottom:24,borderLeft:`4px solid ${T.gold}`,background:T.goldLight}}>
-            <p style={{margin:0,fontSize:14,color:T.inkMid}}>👋 <strong>Get started:</strong> Add your last period date in <button onClick={()=>setPage('settings')} style={{background:'none',border:'none',color:T.rose,fontWeight:700,cursor:'pointer',textDecoration:'underline',fontSize:14}}>Settings</button> to unlock personalised recommendations across all modules.</p>
-          </Card>
-        )}
         <h3 style={{fontFamily:'Playfair Display,serif',fontSize:20,color:T.ink,marginBottom:16}}>Explore NariSync</h3>
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:14,marginBottom:28}}>
-          {[{k:'tracker',i:'📅',t:'Cycle Tracker',d:'Log period, sleep, mood & symptoms',c:T.rose},{k:'recipes',i:'🥗',t:'Recipe Generator',d:'Phase-personalised recipes by ingredient',c:T.gold},{k:'mealprep',i:'📋',t:'Meal Planner',d:'Weekly plan + shopping list',c:T.sage},{k:'yoga',i:'🧘',t:'Yoga & Movement',d:'Phase-specific routines with video guides',c:T.purple},{k:'ayurveda',i:'🌿',t:'Ayurveda',d:'Seed cycling, herbal teas & rituals',c:'#5A8A75'},{k:'disorders',i:'💙',t:'Wellness Guide',d:'PCOS, endometriosis, menopause & more',c:'#5572A8'}].map(m=>(
+          {[{k:'tracker',i:'📅',t:'Cycle Tracker',d:'Log period, sleep, mood & symptoms',c:T.rose},{k:'recipes',i:'🥗',t:'Recipe Generator',d:'Phase-personalised recipes by ingredient',c:T.gold},{k:'mealprep',i:'📋',t:'Meal Planner',d:'Weekly plan + shopping list',c:T.sage},{k:'yoga',i:'🧘',t:'Yoga & Movement',d:'Phase-specific routines with instructions',c:T.purple},{k:'ayurveda',i:'🌿',t:'Ayurveda',d:'Seed cycling, herbal teas & rituals',c:'#5A8A75'},{k:'disorders',i:'💙',t:'Wellness Guide',d:'PCOS, endometriosis, menopause & more',c:'#5572A8'}].map(m=>(
             <button key={m.k} onClick={()=>setPage(m.k)} style={{textAlign:'left',background:T.white,border:`1px solid ${T.border}`,borderRadius:16,padding:18,cursor:'pointer',transition:'all 0.2s',boxShadow:`0 2px 10px ${T.shadow}`}}
               onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=`0 6px 20px ${T.shadowMd}`}}
               onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow=`0 2px 10px ${T.shadow}`}}>
@@ -206,6 +253,21 @@ function HomePage({profile,logs,setPage}){
           </Card>
         )}
       </div>
+      {/* Profile setup popup with dismiss option */}
+      {!profile.lastPeriod&&!popupDismissed&&(
+        <div style={{position:'fixed',bottom:20,right:20,zIndex:200,background:'white',border:`1.5px solid ${T.border}`,borderRadius:16,padding:'18px 20px',boxShadow:`0 8px 32px ${T.shadowMd}`,maxWidth:280}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
+            <div style={{fontSize:20}}>👋</div>
+            <button onClick={()=>setPopupDismissed(true)} style={{background:'none',border:'none',cursor:'pointer',color:T.inkLight,fontSize:18,lineHeight:1,padding:'0 2px'}} title="Dismiss">×</button>
+          </div>
+          <div style={{fontSize:14,fontWeight:600,color:T.ink,marginBottom:4}}>Set up your profile</div>
+          <div style={{fontSize:12,color:T.inkLight,marginBottom:12,lineHeight:1.5}}>Add your cycle date to unlock personalised recommendations. You can also explore the app first!</div>
+          <div style={{display:'flex',gap:8}}>
+            <button onClick={()=>setPage('settings')} style={{flex:1,padding:'8px',background:T.rose,color:'white',border:'none',borderRadius:10,fontWeight:600,fontSize:12,cursor:'pointer'}}>Set up Profile</button>
+            <button onClick={()=>setPopupDismissed(true)} style={{padding:'8px 12px',background:T.roseLight,color:T.rose,border:`1px solid ${T.border}`,borderRadius:10,fontWeight:600,fontSize:12,cursor:'pointer'}}>Later</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -222,7 +284,7 @@ function TrackerPage({profile,logs,setLogs,setPage}){
   const[form,setForm]=useState({flow:ex.flow||'',sleep:ex.sleep||'',mood:ex.mood||'',symptoms:ex.symptoms||[],notes:ex.notes||''});
   const[saved,setSaved]=useState(false);
   useEffect(()=>{const e=logs[sel]||{};setForm({flow:e.flow||'',sleep:e.sleep||'',mood:e.mood||'',symptoms:e.symptoms||[],notes:e.notes||''});setSaved(false)},[sel]);
-  const{day,phase,len}=getCycleInfo(profile.lastPeriod,+profile.cycleLength,sel);
+  const{day,phase}=getCycleInfo(profile.lastPeriod,+profile.cycleLength,sel);
   const cycleLen=+profile.cycleLength||28;
   const calDays=Array.from({length:28},(_,i)=>{const iso=addDays(today,i-13);return{iso,...getCycleInfo(profile.lastPeriod,cycleLen,iso),log:logs[iso]}});
   function toggleSym(s){setForm(f=>({...f,symptoms:f.symptoms.includes(s)?f.symptoms.filter(x=>x!==s):[...f.symptoms,s]}))}
@@ -314,111 +376,142 @@ function TrackerPage({profile,logs,setLogs,setPage}){
   );
 }
 
-/* ---- RECIPES ---- */
-const RECIPES=[
-  {id:'r1',name:'Iron-Boost Beetroot & Spinach Poha',meal:'breakfast',phase:['menstrual'],time:15,cal:290,tags:['iron-rich','warming'],ing:['poha','beetroot','spinach','onion','mustard seeds','peanuts','lemon'],steps:['Rinse 1 cup poha and set aside.','Grate beetroot and chop spinach.','Heat oil, splutter mustard seeds, sauté onion.','Add beetroot and spinach, cook 4 min.','Fold in poha and peanuts, finish with lemon.'],why:'Beetroot and spinach replenish iron lost during your period.'},
-  {id:'r2',name:'Warm Cinnamon Oats with Banana',meal:'breakfast',phase:['menstrual'],time:10,cal:260,tags:['warming','magnesium-rich'],ing:['oats','banana','milk','cinnamon','honey','walnuts'],steps:['Simmer oats with milk 5 min.','Stir in cinnamon and mashed banana.','Top with walnuts and honey.'],why:'Banana and cinnamon ease cramps and stabilise blood sugar.'},
-  {id:'r3',name:'Golden Turmeric Quinoa Porridge',meal:'breakfast',phase:['follicular','any'],time:20,cal:310,tags:['anti-inflammatory','protein-rich'],ing:['quinoa','milk','turmeric','ginger','honey','almonds'],steps:['Simmer quinoa in milk with turmeric and ginger 15 min.','Stir until creamy.','Top with almonds and honey.'],why:'Protein-rich anti-inflammatory start for the follicular phase.'},
-  {id:'r4',name:'Avocado & Egg Power Toast',meal:'breakfast',phase:['ovulatory','any'],time:12,cal:340,tags:['protein-rich'],ing:['bread','avocado','eggs','chilli flakes','lemon','tomato'],steps:['Toast whole-grain bread.','Mash avocado with lemon and chilli.','Top with a fried egg and tomato.'],why:'Protein and healthy fats to match peak ovulatory energy.'},
-  {id:'r5',name:'Sweet Potato & Almond Butter Bowl',meal:'breakfast',phase:['luteal'],time:20,cal:320,tags:['magnesium-rich','warming'],ing:['sweet potato','almond butter','cinnamon','pumpkin seeds','honey'],steps:['Steam cubed sweet potato 15 min.','Mash with almond butter and cinnamon.','Top with pumpkin seeds and honey.'],why:'Magnesium and complex carbs ease luteal cravings.'},
-  {id:'r6',name:'Comforting Lentil & Spinach Dal',meal:'lunch',phase:['menstrual'],time:30,cal:420,tags:['iron-rich','protein-rich','warming'],ing:['red lentils','spinach','brown rice','ginger','garlic','turmeric','cumin','ghee'],steps:['Simmer lentils with turmeric until soft.','Sauté ginger, garlic, cumin in ghee; add to dal.','Stir in spinach, simmer 5 min.','Serve over brown rice.'],why:'Lentils and spinach restore iron and protein.'},
-  {id:'r7',name:'Quinoa Veggie Power Bowl',meal:'lunch',phase:['follicular','any'],time:25,cal:410,tags:['protein-rich','high-fiber'],ing:['quinoa','broccoli','chickpeas','carrot','tahini','lemon'],steps:['Cook quinoa.','Steam broccoli and carrot.','Combine with chickpeas, drizzle tahini-lemon dressing.'],why:'Balanced protein and fibre support rising oestrogen.'},
-  {id:'r8',name:'Mediterranean Salmon & Couscous',meal:'lunch',phase:['ovulatory','any'],time:25,cal:460,tags:['protein-rich','anti-inflammatory'],ing:['salmon','couscous','cucumber','tomato','olive oil','lemon','feta'],steps:['Pan-sear salmon 3-4 min per side.','Fluff couscous with hot water and olive oil.','Toss couscous with cucumber, tomato, feta; serve with salmon.'],why:'Omega-3 salmon supports anti-inflammatory needs of ovulation.'},
-  {id:'r9',name:'Sweet Potato Black Bean Bowl',meal:'lunch',phase:['luteal'],time:30,cal:430,tags:['magnesium-rich','high-fiber'],ing:['sweet potato','black beans','avocado','corn','lime','cumin'],steps:['Roast sweet potato with cumin 20 min.','Warm black beans and corn.','Combine, top with avocado and lime.'],why:'Complex carbs and magnesium curb luteal cravings.'},
-  {id:'r10',name:'Ginger Turmeric Vegetable Soup',meal:'dinner',phase:['menstrual'],time:25,cal:240,tags:['warming','anti-inflammatory'],ing:['carrot','pumpkin','ginger','turmeric','garlic','vegetable broth','coconut milk'],steps:['Sauté garlic and ginger, add carrot and pumpkin.','Simmer in broth 15 min.','Blend smooth, stir in coconut milk and turmeric.'],why:'Anti-inflammatory soup that soothes cramps.'},
-  {id:'r11',name:'Khichdi with Ghee',meal:'dinner',phase:['menstrual'],time:30,cal:350,tags:['warming','light'],ing:['rice','moong dal','ghee','cumin','turmeric','ginger'],steps:['Rinse equal parts rice and moong dal.','Pressure cook with turmeric and ginger.','Finish with ghee and cumin tempering.'],why:'Ayurvedic comfort food, gentle on digestion.'},
-  {id:'r12',name:'Stir-fried Veggies with Quinoa',meal:'dinner',phase:['follicular','any'],time:20,cal:360,tags:['high-fiber','protein-rich'],ing:['quinoa','zucchini','bell pepper','mushroom','garlic','soy sauce'],steps:['Cook quinoa.','Stir-fry vegetables with garlic on high heat.','Toss with quinoa and soy sauce.'],why:'Light and energising as your body builds toward ovulation.'},
-  {id:'r13',name:'Baked Salmon with Greens',meal:'dinner',phase:['ovulatory','any'],time:25,cal:420,tags:['protein-rich','anti-inflammatory'],ing:['salmon','spinach','kale','garlic','olive oil','lemon'],steps:['Bake salmon with olive oil, garlic and lemon 12-15 min.','Sauté spinach and kale with garlic.','Serve salmon over greens.'],why:'Omega-3s and leafy greens support hormone balance.'},
-  {id:'r14',name:'Comforting Red Lentil Stew',meal:'dinner',phase:['luteal'],time:30,cal:380,tags:['magnesium-rich','warming'],ing:['red lentils','sweet potato','coconut milk','ginger','cumin','spinach'],steps:['Sauté ginger and cumin, add lentils, sweet potato and coconut milk.','Simmer 20 min.','Stir in spinach before serving.'],why:'Magnesium-rich stew to soothe luteal tension.'},
-  {id:'r15',name:'Date, Almond & Flax Energy Balls',meal:'snack',phase:['any'],time:15,cal:150,tags:['magnesium-rich'],ing:['dates','almonds','flaxseed','cocoa powder','coconut'],steps:['Blend dates and almonds.','Mix in flaxseed and cocoa.','Roll into balls, coat in coconut.'],why:'Naturally sweet magnesium snack for any phase.'},
-  {id:'r16',name:'Dark Chocolate & Walnut Bites',meal:'snack',phase:['luteal'],time:10,cal:170,tags:['magnesium-rich'],ing:['dark chocolate','walnuts','sea salt'],steps:['Melt dark chocolate.','Stir in walnuts, spoon onto tray, sprinkle salt.','Chill 20 min.'],why:'Satisfies luteal cravings while delivering magnesium.'},
-  {id:'r17',name:'Honey-Roasted Pumpkin Seeds',meal:'snack',phase:['menstrual','follicular'],time:12,cal:140,tags:['iron-rich','magnesium-rich'],ing:['pumpkin seeds','honey','cinnamon','sea salt'],steps:['Toss seeds with honey, cinnamon and salt.','Roast at 180°C for 8-10 min.'],why:'Part of seed cycling — rich in iron, zinc and healthy fats.'},
-  {id:'r18',name:'Greek Yogurt Berry Parfait',meal:'snack',phase:['follicular','any'],time:8,cal:220,tags:['protein-rich','light'],ing:['greek yogurt','berries','flaxseed','honey','granola'],steps:['Layer yogurt with berries.','Sprinkle flaxseed and granola.','Drizzle with honey.'],why:'Probiotic yogurt and flaxseed support hormone metabolism.'},
-];
-
+/* ---- RECIPE GENERATOR ---- */
 function RecipesPage({profile,logs,setLogs,setPage}){
   const today=todayISO();
   const{phase}=getCycleInfo(profile.lastPeriod,+profile.cycleLength,today);
-  const bmi=calcBMI(profile.weight,profile.height);
-  const whr=calcWHR(profile.waist,profile.hip);
   const[ing,setIng]=useState('');
   const[maxTime,setMaxTime]=useState('30');
   const[mealType,setMealType]=useState('any');
   const[results,setResults]=useState([]);
   const[generated,setGenerated]=useState(false);
-  const[active,setActive]=useState(null);
   const[logged,setLogged]=useState({});
+
   function score(r){
-    let s=0;
     const ui=ing.toLowerCase().split(',').map(x=>x.trim()).filter(Boolean);
-    if(ui.length){const m=r.ing.filter(ri=>ui.some(u=>ri.toLowerCase().includes(u)||u.includes(ri.split(' ')[0].toLowerCase()))).length;s+=m*10;}
-    if(r.phase.includes(phase)||r.phase.includes('any'))s+=15;
-    if(mealType!=='any'&&r.meal===mealType)s+=10;
-    if(+maxTime&&r.time<=+maxTime)s+=8;
-    if(bmi){const c=bmiCat(bmi);if(c==='Underweight'&&r.tags.includes('calorie-dense'))s+=5;if((c==='Overweight'||c==='Obese')&&r.tags.includes('high-fiber'))s+=5;}
+    if(ui.length===0) return 10;
+    const matches=r.ing.filter(ri=>
+      ui.some(u=>ri.toLowerCase().includes(u)||u.includes(ri.toLowerCase().split(' ')[0]))
+    ).length;
+    if(matches===0) return -1;
+    let s=matches*20;
+    if(r.phase.includes(phase)||r.phase.includes('any'))s+=10;
+    if(mealType!=='any'&&r.meal===mealType)s+=5;
+    if(+maxTime&&r.time<=+maxTime)s+=5;
     return s;
   }
-  function generate(){const r=RECIPES.filter(r=>mealType==='any'||r.meal===mealType).filter(r=>!maxTime||r.time<=+maxTime).map(r=>({...r,score:score(r)})).sort((a,b)=>b.score-a.score).slice(0,3);setResults(r);setGenerated(true);setActive(null);}
-  function logCal(r){setLogs(p=>{const dl=p[today]||{};return{...p,[today]:{...dl,calories:(dl.calories||0)+r.cal}}});setLogged(p=>({...p,[r.id]:true}));}
+
+  function generate(){
+    const scored=RECIPES
+      .filter(r=>mealType==='any'||r.meal===mealType)
+      .filter(r=>!maxTime||r.time<=+maxTime)
+      .map(r=>({...r,score:score(r)}))
+      .filter(r=>r.score>0)
+      .sort((a,b)=>b.score-a.score)
+      .slice(0,3);
+    setResults(scored);
+    setGenerated(true);
+  }
+
+  function logCal(r){
+    setLogs(p=>{const dl=p[today]||{};return{...p,[today]:{...dl,calories:(dl.calories||0)+r.cal}}});
+    setLogged(p=>({...p,[r.id]:true}));
+  }
+
   return(
     <div style={{maxWidth:900,margin:'0 auto',padding:'32px 20px'}}>
       <BackBtn onClick={()=>setPage('home')}/>
-      <SectionHead title="AI Recipe Generator" subtitle="Enter ingredients and time, get phase-personalised recipe suggestions."/>
-      <div style={{display:'flex',gap:10,flexWrap:'wrap',marginBottom:20}}>
-        {phase&&<Badge label={`${PHASE_META[phase].label} Phase`} color={PHASE_META[phase].color} bg={PHASE_META[phase].color+'18'}/>}
-        {bmi&&<Badge label={`BMI ${bmi} · ${bmiCat(bmi)}`} color={T.sage} bg={T.sageLight}/>}
-        {whr&&<Badge label={`WHR ${whr} · ${whrCat(whr)}`} color={T.purple} bg={T.purpleLight}/>}
-      </div>
+      <SectionHead title="Recipe Generator" subtitle="Enter your ingredients to get matching recipes with full cooking guides."/>
+      {phase&&<div style={{marginBottom:20}}><Badge label={`${PHASE_META[phase].label} Phase — recipes will prioritise ingredients you have`} color={PHASE_META[phase].color} bg={PHASE_META[phase].color+'18'}/></div>}
       <Card style={{marginBottom:24}}>
-        <h3 style={{fontFamily:'Playfair Display,serif',fontSize:17,color:T.ink,margin:'0 0 18px'}}>What do you have?</h3>
-        <Input label="Available ingredients (comma-separated)" value={ing} onChange={e=>setIng(e.target.value)} placeholder="e.g. spinach, lentils, ginger, rice"/>
+        <h3 style={{fontFamily:'Playfair Display,serif',fontSize:17,color:T.ink,margin:'0 0 18px'}}>What ingredients do you have?</h3>
+        <Input label="Available ingredients — separate with commas" value={ing} onChange={e=>setIng(e.target.value)} placeholder="e.g. spinach, lentils, ginger, rice, onion"/>
+        <p style={{fontSize:12,color:T.inkLight,margin:'-12px 0 18px',lineHeight:1.5}}>Only recipes containing your listed ingredients will appear. Leave blank to see all recipes for your current phase.</p>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
           <Input label="Max time (minutes)" type="number" value={maxTime} onChange={e=>setMaxTime(e.target.value)} placeholder="30" min="5" max="120"/>
-          <div><label style={{display:'block',fontSize:11,fontWeight:600,color:T.inkLight,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:6}}>Meal Type</label>
-          <select value={mealType} onChange={e=>setMealType(e.target.value)} style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${T.border}`,borderRadius:10,fontSize:14,color:T.ink,background:T.cream,outline:'none'}}>
-            {['any','breakfast','lunch','dinner','snack'].map(o=><option key={o} value={o}>{o.charAt(0).toUpperCase()+o.slice(1)}</option>)}
-          </select></div>
+          <div>
+            <label style={{display:'block',fontSize:11,fontWeight:600,color:T.inkLight,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:6}}>Meal Type</label>
+            <select value={mealType} onChange={e=>setMealType(e.target.value)} style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${T.border}`,borderRadius:10,fontSize:14,color:T.ink,background:T.cream,outline:'none'}}>
+              {['any','breakfast','lunch','dinner','snack'].map(o=><option key={o} value={o}>{o.charAt(0).toUpperCase()+o.slice(1)}</option>)}
+            </select>
+          </div>
         </div>
-        <button onClick={generate} style={{width:'100%',padding:13,background:T.rose,color:'white',border:'none',borderRadius:12,fontWeight:700,fontSize:14,cursor:'pointer',marginTop:4}}>✨ Generate Personalised Recipes</button>
+        <button onClick={generate} style={{width:'100%',padding:13,background:T.rose,color:'white',border:'none',borderRadius:12,fontWeight:700,fontSize:14,cursor:'pointer',marginTop:4}}>🔍 Find Matching Recipes</button>
       </Card>
+
       {generated&&results.length>0&&(
         <div>
-          <h3 style={{fontFamily:'Playfair Display,serif',fontSize:20,color:T.ink,marginBottom:16}}>Your personalised picks</h3>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(250px,1fr))',gap:18}}>
+          <h3 style={{fontFamily:'Playfair Display,serif',fontSize:20,color:T.ink,marginBottom:20}}>
+            {results.length} recipe{results.length>1?'s':''} matched your ingredients
+          </h3>
+          <div style={{display:'flex',flexDirection:'column',gap:28}}>
             {results.map(r=>(
-              <Card key={r.id} style={{cursor:'pointer',border:active?.id===r.id?`2px solid ${T.rose}`:`1px solid ${T.border}`}} onClick={()=>setActive(active?.id===r.id?null:r)}>
-                <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
-                  <Badge label={r.meal} color={T.gold} bg={T.goldLight}/>
-                  {r.phase.includes(phase)&&<Badge label="Phase match ✓" color={T.sage} bg={T.sageLight}/>}
+              <Card key={r.id} style={{borderLeft:`4px solid ${T.rose}`}}>
+                {/* Header */}
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:16,flexWrap:'wrap',gap:10}}>
+                  <div>
+                    <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:8}}>
+                      <Badge label={r.meal} color={T.gold} bg={T.goldLight}/>
+                      {r.phase.includes(phase)&&<Badge label="Phase match ✓" color={T.sage} bg={T.sageLight}/>}
+                    </div>
+                    <h3 style={{fontFamily:'Playfair Display,serif',fontSize:22,color:T.ink,margin:'0 0 6px'}}>{r.name}</h3>
+                    <div style={{display:'flex',gap:16}}>
+                      <span style={{fontSize:13,color:T.inkLight}}>⏱ {r.time} minutes</span>
+                      <span style={{fontSize:13,color:T.sage,fontWeight:600}}>🔥 {r.cal} kcal</span>
+                    </div>
+                  </div>
+                  <button onClick={()=>logCal(r)} disabled={logged[r.id]} style={{padding:'10px 18px',background:logged[r.id]?T.sageLight:T.rose,color:logged[r.id]?T.sage:'white',border:'none',borderRadius:10,fontWeight:600,fontSize:13,cursor:logged[r.id]?'default':'pointer',flexShrink:0}}>
+                    {logged[r.id]?`✓ Logged ${r.cal} kcal`:`Log ${r.cal} kcal to today`}
+                  </button>
                 </div>
-                <h4 style={{fontFamily:'Playfair Display,serif',fontSize:16,color:T.ink,margin:'0 0 6px'}}>{r.name}</h4>
-                <div style={{display:'flex',gap:14,marginBottom:8}}><span style={{fontSize:12,color:T.inkLight}}>⏱ {r.time} min</span><span style={{fontSize:12,color:T.sage,fontWeight:600}}>🔥 {r.cal} kcal</span></div>
-                <p style={{fontSize:12,color:T.inkMid,lineHeight:1.5,margin:'0 0 10px'}}>{r.why}</p>
-                <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:10}}>{r.tags.map(t=><Badge key={t} label={t} color={T.inkLight} bg={T.roseLight}/>)}</div>
-                <button onClick={e=>{e.stopPropagation();logCal(r)}} disabled={logged[r.id]} style={{width:'100%',padding:8,background:logged[r.id]?T.sageLight:T.rosePale,color:logged[r.id]?T.sage:T.rose,border:'none',borderRadius:10,fontWeight:600,fontSize:12,cursor:logged[r.id]?'default':'pointer'}}>
-                  {logged[r.id]?`✓ Logged ${r.cal} kcal`:`Log ${r.cal} kcal to today`}
-                </button>
+                {/* Why this recipe */}
+                <div style={{background:T.roseLight,borderRadius:10,padding:'12px 16px',marginBottom:20}}>
+                  <span style={{fontWeight:600,color:T.rose,fontSize:13}}>Why this recipe for you: </span>
+                  <span style={{fontSize:13,color:T.inkMid}}>{r.why}</span>
+                </div>
+                {/* Ingredients + Steps */}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 2fr',gap:24}}>
+                  <div>
+                    <h4 style={{fontSize:13,fontWeight:700,color:T.rose,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:14}}>🛒 Ingredients</h4>
+                    <ul style={{margin:0,padding:0,listStyle:'none'}}>
+                      {r.ing.map((ingredient,i)=>(
+                        <li key={i} style={{display:'flex',alignItems:'flex-start',gap:8,padding:'8px 0',borderBottom:`1px solid ${T.border}`,fontSize:14,color:T.inkMid}}>
+                          <span style={{width:6,height:6,borderRadius:'50%',background:T.rose,flexShrink:0,marginTop:6}}/>
+                          {ingredient}
+                        </li>
+                      ))}
+                    </ul>
+                    <div style={{display:'flex',gap:5,flexWrap:'wrap',marginTop:14}}>
+                      {r.tags.map(t=><Badge key={t} label={t} color={T.inkLight} bg={T.roseLight}/>)}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 style={{fontSize:13,fontWeight:700,color:T.rose,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:14}}>👩‍🍳 Step-by-Step Instructions</h4>
+                    <ol style={{margin:0,padding:0,listStyle:'none'}}>
+                      {r.steps.map((step,i)=>(
+                        <li key={i} style={{display:'flex',gap:14,marginBottom:18}}>
+                          <div style={{flexShrink:0,width:28,height:28,borderRadius:'50%',background:T.rose,color:'white',fontWeight:700,fontSize:13,display:'flex',alignItems:'center',justifyContent:'center'}}>{i+1}</div>
+                          <p style={{fontSize:14,color:T.inkMid,lineHeight:1.7,margin:0,paddingTop:4}}>{step}</p>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                </div>
               </Card>
             ))}
           </div>
-          {active&&(
-            <Card style={{marginTop:24,borderLeft:`4px solid ${T.rose}`}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:18}}>
-                <div><h3 style={{fontFamily:'Playfair Display,serif',fontSize:22,color:T.ink,margin:'0 0 6px'}}>{active.name}</h3><div style={{display:'flex',gap:14}}><span style={{fontSize:13,color:T.inkLight}}>⏱ {active.time} minutes</span><span style={{fontSize:13,color:T.sage,fontWeight:600}}>🔥 {active.cal} kcal</span></div></div>
-                <button onClick={()=>setActive(null)} style={{background:T.roseLight,border:'none',borderRadius:8,padding:'6px 12px',cursor:'pointer',color:T.rose,fontWeight:600,fontSize:12}}>Close</button>
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 2fr',gap:20}}>
-                <div><h4 style={{color:T.rose,fontSize:12,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:10}}>Ingredients</h4>
-                <ul style={{margin:0,padding:0,listStyle:'none'}}>{active.ing.map(i=><li key={i} style={{padding:'7px 0',borderBottom:`1px solid ${T.border}`,fontSize:13,color:T.inkMid}}>· {i}</li>)}</ul></div>
-                <div><h4 style={{color:T.rose,fontSize:12,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:10}}>Steps</h4>
-                <ol style={{margin:0,padding:0,listStyle:'none'}}>{active.steps.map((s,i)=><li key={i} style={{display:'flex',gap:12,marginBottom:12}}><div style={{flexShrink:0,width:24,height:24,borderRadius:'50%',background:T.rose,color:'white',fontWeight:700,fontSize:11,display:'flex',alignItems:'center',justifyContent:'center'}}>{i+1}</div><p style={{fontSize:13,color:T.inkMid,lineHeight:1.6,margin:0}}>{s}</p></li>)}</ol></div>
-              </div>
-              <div style={{background:T.roseLight,borderRadius:10,padding:'12px 16px',marginTop:16}}><span style={{fontWeight:600,color:T.rose}}>Why this for you: </span><span style={{fontSize:13,color:T.inkMid}}>{active.why}</span></div>
-            </Card>
-          )}
         </div>
       )}
-      {generated&&results.length===0&&<Card><p style={{textAlign:'center',color:T.inkLight}}>No recipes matched. Try extending the time or leaving ingredients blank.</p></Card>}
+
+      {generated&&results.length===0&&(
+        <Card>
+          <div style={{textAlign:'center',padding:'24px 0'}}>
+            <div style={{fontSize:40,marginBottom:12}}>🔍</div>
+            <p style={{fontSize:16,color:T.inkMid,fontWeight:600,margin:'0 0 8px'}}>No recipes found for those ingredients.</p>
+            <p style={{fontSize:13,color:T.inkLight,margin:0,lineHeight:1.6}}>Try different ingredients, add more items separated by commas, or leave the field blank to see all recipes for your current phase.</p>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
@@ -530,34 +623,77 @@ function MealPrepPage({profile,logs,setLogs,setPage}){
 
 /* ---- YOGA ---- */
 const YOGA={
-  menstrual:{label:'Menstrual',color:'#A8425A',bg:'#FDF0F3',title:'Rest, Release & Restore',intro:'Favour gentle, restorative poses that ease cramps and release tension in the lower back and pelvis.',poses:[
-    {name:'Supta Baddha Konasana',sub:'Reclined Butterfly',dur:'5–8 min',type:'restorative',inst:'Lie on your back. Bring soles of feet together, knees fall open. Support knees with blankets. Rest hands on belly. Breathe deeply into lower abdomen.',ben:'Opens hips and groin, soothes uterine cramps, calms the nervous system.',yt:'qOZVV6b9H5k'},
-    {name:'Balasana',sub:"Child's Pose",dur:'3–5 min',type:'restorative',inst:'Kneel, big toes touching, knees wide. Fold forward, arms stretched ahead. Press forehead gently into mat.',ben:'Relieves lower back pressure, eases abdominal cramping, deeply calming.',yt:'eqVMAPM00DM'},
-    {name:'Viparita Karani',sub:'Legs-Up-the-Wall',dur:'5–10 min',type:'restorative',inst:'Sit sideways against a wall, swing legs up as you lie back. Arms by sides, palms up. Eyes closed, breathe slowly.',ben:'Reduces back fatigue, encourages circulation, deeply relaxing.',yt:'zJPLiXFHOaE'},
-    {name:'Supta Matsyendrasana',sub:'Reclined Spinal Twist',dur:'3 min each side',type:'gentle',inst:'Lie on back, draw one knee to chest then guide across body. Extend arm out to side. Hold, repeat other side.',ben:'Releases tension in sacrum, gently massages abdominal organs.',yt:'MsYMR4Q3_oY'},
-    {name:'Savasana with Bolster',sub:'Supported Corpse Pose',dur:'10 min',type:'restorative',inst:'Bolster under knees. Lie flat, arms relaxed, eyes closed. 4-count inhale, 6-count exhale.',ben:'Total body relaxation, lowers cortisol, supports rest.',yt:'w39bMQgMJpI'},
-  ],breath:'Nadi Shodhana (Alternate Nostril): Close right nostril with thumb. Inhale left 4 counts. Hold 4 counts. Release right, exhale 6 counts. Repeat 5–10 minutes. Balances the nervous system.'},
-  follicular:{label:'Follicular',color:'#C98E4F',bg:'#FDF6EE',title:'Rise, Build & Energise',intro:'As oestrogen rises, your energy lifts. Best time to try new poses, build strength and explore expansive movement.',poses:[
-    {name:'Surya Namaskar',sub:'Sun Salutation (3–6 rounds)',dur:'10–15 min',type:'dynamic',inst:'Flow through the 12-pose sequence. Sync each movement with a breath. Start slowly and build speed.',ben:'Full-body warm-up, builds heat and circulation, invigorating.',yt:'VaoV1PrYft4'},
-    {name:'Virabhadrasana II',sub:'Warrior II',dur:'45 sec each side',type:'strength',inst:'Step feet wide. Turn right foot out 90°. Bend right knee over ankle, left leg straight. Arms parallel to floor, gaze over right fingertips.',ben:'Builds leg and core strength, improves stamina and focus.',yt:'E4UFhT7Mkkg'},
-    {name:'Utthita Trikonasana',sub:'Extended Triangle Pose',dur:'1 min each side',type:'strength',inst:'Wide stance, turn one foot out. Reach leading hand toward shin or floor, top arm to sky. Look up and breathe.',ben:'Stretches hamstrings and sides, improves balance.',yt:'XLVFg-BJPTI'},
-    {name:'Navasana',sub:'Boat Pose',dur:'30 sec × 3',type:'strength',inst:'Sit, bend knees, lean back, shins parallel to floor. Extend arms forward. Hold, breathe into core.',ben:'Strengthens core and hip flexors, builds confidence.',yt:'zh4EOI2ufm4'},
-    {name:'Ustrasana',sub:'Camel Pose',dur:'30 sec × 2',type:'backbend',inst:'Kneel, hips over knees. Hands on lower back. Inhale, open chest upward. Reach back for heels if comfortable.',ben:'Heart-opening, energising, supports increased oestrogen.',yt:'BARoB-b4JaM'},
-  ],breath:'Kapalabhati (Skull-Shining Breath): Sharp rhythmic exhales through nose, 1 per second, passive inhales. 30 breaths, rest, repeat 3 rounds. Energising and uplifting.'},
-  ovulatory:{label:'Ovulatory',color:'#8FA15C',bg:'#F3F7EC',title:'Peak Energy & Expansive Flow',intro:'Ovulation is your peak energy window. Channel confidence and vitality into strong, expressive movement.',poses:[
-    {name:'Vinyasa Flow',sub:'Dynamic Linking Flow',dur:'20 min',type:'dynamic',inst:'Link warrior sequences, chair pose, high lunge and balancing poses in continuous breath-led flow.',ben:'Builds heat, improves cardio fitness, expressive and empowering.',yt:'9kOCY0KNByw'},
-    {name:'Natarajasana',sub:"Dancer's Pose",dur:'45 sec each side',type:'balance',inst:"Stand on one foot, bend opposite knee, hold inner ankle. Slowly extend leg behind you while reaching free arm forward.",ben:'Improves balance, opens heart and hip flexors, graceful.',yt:'Oir0mcPnBJo'},
-    {name:'Utthita Hasta Padangusthasana',sub:'Extended Hand-to-Big-Toe',dur:'1 min each side',type:'balance',inst:'From standing, bend one knee to chest, hold big toe, slowly extend leg forward. Standing leg strong.',ben:'Builds balance, hamstring flexibility and mental focus.',yt:'qDgO6nTM3fM'},
-    {name:'Handstand Prep',sub:'At the Wall',dur:'3 × 30 sec',type:'inversion',inst:'Walk feet up wall to L-shape. When comfortable, kick up one leg at a time. Arms straight, core firm.',ben:'Builds upper body strength, boosts confidence.',yt:'yZBNxYxrp8Q'},
-    {name:'Urdhva Dhanurasana',sub:'Wheel Pose',dur:'30 sec × 2',type:'backbend',inst:'Lie on back, hands beside head, feet near hips. Press up to crown, then straighten arms. Warm up first.',ben:'Powerful heart opener, builds full-body strength, joyful.',yt:'OiHBFf6bXnQ'},
-  ],breath:'Bhastrika (Bellows Breath): Forceful in and out through nose equally, 1–2 breaths/sec. 20 breaths per round, 3 rounds. Builds heat, energy and clarity.'},
-  luteal:{label:'Luteal',color:'#6E5A9C',bg:'#F5F3FB',title:'Ground, Slow & Nourish',intro:'Progesterone rises and the body slows. Favour grounding, introspective practices that calm the nervous system.',poses:[
-    {name:'Prasarita Padottanasana',sub:'Wide-Legged Forward Fold',dur:'2 min',type:'grounding',inst:'Step feet wide and parallel. Hinge at hips, walk hands to floor. Let head hang heavy.',ben:'Calms nervous system, relieves PMS headaches, grounding.',yt:'VG2-BCXGYbI'},
-    {name:'Paschimottanasana',sub:'Seated Forward Fold',dur:'3 min',type:'grounding',inst:'Sit, legs extended. Inhale, lengthen spine; exhale, fold forward. Rest hands or forehead on legs.',ben:'Soothes nervous system, calms anxiety and irritability.',yt:'Ixv6i3JxNDI'},
-    {name:'Ananda Balasana',sub:'Happy Baby Pose',dur:'2–3 min',type:'restorative',inst:'Lie on back, draw knees to chest, grip outer edges of feet. Pull knees toward armpits. Rock side to side.',ben:'Releases sacral tension, calms bloating.',yt:'LHFKU0Wv5fc'},
-    {name:'Virasana + Pranayama',sub:"Hero's Pose with Breath",dur:'5 min',type:'grounding',inst:"Sit between heels (use block if needed). Hands on thighs. Practice alternate nostril breathing for 5 minutes.",ben:'Deep grounding, balances nervous system, reduces PMS anxiety.',yt:'K2nSIDR8oFo'},
-    {name:'Yoga Nidra',sub:'Yogic Sleep',dur:'20 min',type:'restorative',inst:'Lie in Savasana. Follow guided body scan: consciously relax each body part from toes to crown.',ben:'Deeply restorative, lowers cortisol, improves sleep.',yt:'M0u9GSekNW4'},
-  ],breath:'Box Breathing (4-4-4-4): Inhale 4 counts, hold 4, exhale 4, hold 4. Repeat 5–10 minutes. Regulates cortisol and calms PMS anxiety.'},
+  menstrual:{label:'Menstrual',color:'#A8425A',bg:'#FDF0F3',title:'Rest, Release & Restore',intro:'During menstruation, your body is working hard. Favour gentle, restorative poses that ease cramps, release tension in the lower back and pelvis, and encourage circulation without strain.',poses:[
+    {name:'Supta Baddha Konasana',sub:'Reclined Butterfly',dur:'5–8 minutes',type:'Restorative',
+     inst:'Lie flat on your back on a mat. Bring the soles of your feet together so your knees fall open to the sides like butterfly wings. If this feels too intense, place folded blankets or pillows under your knees for support. Rest your arms by your sides with palms facing up. Close your eyes and take slow, deep breaths into your lower belly. With each exhale, consciously let go of any tension in your hips and pelvis.',
+     ben:'Opens the hips and groin gently. Soothes uterine cramps by relieving pelvic tension. Calms the nervous system and reduces anxiety.'},
+    {name:'Balasana',sub:"Child's Pose",dur:'3–5 minutes',type:'Restorative',
+     inst:"Start by kneeling on the mat with your knees wider than hip-width apart and your big toes touching behind you. Slowly lower your torso forward between your thighs until your forehead rests on the mat. Stretch your arms forward in front of you, or rest them by your sides with palms up. Breathe slowly and deeply. With every exhale, let your body sink a little heavier toward the floor.",
+     ben:'Relieves pressure on the lower back and sacrum. Eases abdominal cramping. Deeply calming — activates the parasympathetic nervous system.'},
+    {name:'Viparita Karani',sub:'Legs Up the Wall',dur:'5–10 minutes',type:'Restorative',
+     inst:'Sit sideways right next to a wall with your hip touching it. Gently swing both legs up the wall as you lower your back to the floor. Your legs should be resting vertically against the wall, your bottom as close to the wall as is comfortable. Rest your arms by your sides with palms up. Place a folded blanket under your hips if your lower back feels strained. Close your eyes and breathe naturally.',
+     ben:'Reduces fatigue in the lower back and legs. Encourages blood flow back to the heart. One of the most deeply relaxing poses — excellent for exhaustion during your period.'},
+    {name:'Supta Matsyendrasana',sub:'Reclined Spinal Twist',dur:'2–3 minutes each side',type:'Gentle',
+     inst:"Lie on your back. Draw your right knee into your chest and hug it gently. Then guide your right knee across your body to the left side, letting it rest on the floor or a pillow if it doesn't reach. Extend your right arm out to the right side and gently turn your head to look right. Keep both shoulders on the floor as much as possible. Hold and breathe into the twist for 2 to 3 minutes, then slowly come back to centre and repeat on the other side.",
+     ben:'Gently massages the abdominal organs. Releases deep tension in the sacrum and lower back. Improves digestion and eases bloating.'},
+    {name:'Savasana',sub:'Corpse Pose — Supported',dur:'10–15 minutes',type:'Restorative',
+     inst:'Lie flat on your back with your legs slightly apart and arms by your sides, palms facing up. Place a rolled blanket or cushion under your knees to relieve lower back pressure. Cover yourself with a blanket if you feel cool. Close your eyes. Begin breathing slowly — inhale for 4 counts, exhale for 6 counts. Scan your body from toes to crown, consciously relaxing each muscle group. Stay completely still.',
+     ben:'Total physical and mental relaxation. Lowers cortisol levels. Supports the deep rest your body needs during menstruation.'},
+  ],breath:'Nadi Shodhana — Alternate Nostril Breathing: Sit comfortably upright. Close your right nostril with your right thumb. Inhale slowly through your left nostril for 4 counts. Close both nostrils with thumb and ring finger for 4 counts. Release your thumb and exhale through your right nostril for 6 counts. Now inhale through the right for 4 counts. Close both and hold for 4. Exhale through the left for 6. This is one round. Repeat for 5 to 10 minutes. This breath balances the nervous system and is profoundly calming during menstruation.'},
+
+  follicular:{label:'Follicular',color:'#C98E4F',bg:'#FDF6EE',title:'Rise, Build & Energise',intro:'As oestrogen rises in the follicular phase, so does your energy, mood and creativity. This is the best time to try new poses, build strength and explore playful, expansive movement. Challenge yourself a little.',poses:[
+    {name:'Surya Namaskar',sub:'Sun Salutation',dur:'10–15 min (3–6 rounds)',type:'Dynamic',
+     inst:"Stand at the top of your mat with feet together and hands at heart centre. Flow through these 12 positions, linking each movement to a breath: 1. Mountain pose — stand tall, exhale. 2. Raised arms — inhale, sweep arms overhead. 3. Forward fold — exhale, fold from the hips. 4. Half lift — inhale, lengthen the spine. 5. Low lunge — exhale, step right foot back. 6. Plank — inhale, step left foot back, hold a straight line. 7. Lower down — exhale, lower knees, chest, chin to the floor. 8. Cobra — inhale, press into hands and lift chest. 9. Downward dog — exhale, press into an inverted V shape. 10. Low lunge — inhale, step right foot forward. 11. Forward fold — exhale, step left foot to meet right. 12. Raised arms — inhale, sweep arms up. Return to mountain pose. That is one round.",
+     ben:'Full body warm-up that builds heat, improves circulation and energises the whole system. Excellent cardiovascular and strength benefits.'},
+    {name:'Virabhadrasana II',sub:'Warrior II',dur:'45 seconds each side',type:'Strength',
+     inst:'Step your feet wide apart — about one leg-length. Turn your right foot out 90 degrees and your left foot in slightly. Bend your right knee so it is directly over your right ankle — do not let it collapse inward. Keep your left leg straight and strong. Raise both arms to shoulder height, parallel to the floor, and reach actively through your fingertips in both directions. Turn your head to gaze over your right fingertips. Keep your torso upright and your core engaged. Breathe steadily. Hold for 45 seconds, then switch sides.',
+     ben:'Builds strength in the legs, glutes and core. Improves stamina and mental focus. Cultivates a sense of power and confidence.'},
+    {name:'Utthita Trikonasana',sub:'Extended Triangle Pose',dur:'1 minute each side',type:'Strength',
+     inst:'From a wide stance with feet parallel, turn your right foot out 90 degrees and your left foot in about 30 degrees. Keep both legs straight and strong. Inhale and reach your right arm forward as you hinge from the hip, lowering your right hand toward your shin, ankle or the floor — whatever is accessible without straining. Extend your left arm directly up toward the sky. Turn your gaze upward to look at your top hand if comfortable for your neck, or look forward. Breathe into the length of your side body. Hold 1 minute then switch.',
+     ben:'Stretches the hamstrings, groin and side body. Improves balance. Opens the chest and improves breathing.'},
+    {name:'Navasana',sub:'Boat Pose',dur:'30 seconds x 3 rounds',type:'Core Strength',
+     inst:'Sit on the floor with your knees bent and feet flat. Place your hands behind your knees for support. Lean back slightly until your spine is long and straight — do not round your back. Lift your feet off the floor so your shins are parallel to the floor. If you can, straighten your legs to form a V shape. Extend your arms forward alongside your legs. Hold, breathing steadily. Rest for 30 seconds between rounds.',
+     ben:'Strengthens the core muscles, hip flexors and spine. Builds the abdominal strength needed for more advanced poses.'},
+    {name:'Ustrasana',sub:'Camel Pose',dur:'30 seconds x 2 rounds',type:'Heart Opener',
+     inst:'Kneel on the mat with your knees hip-width apart and hips directly over your knees. Place your hands on your lower back, fingers pointing downward, for support. Inhale and begin to arch your back, lifting your chest toward the sky. Keep your hips over your knees and your core gently engaged. If you feel stable, reach your hands back one at a time to hold your heels. Let your head drop back only if that feels comfortable for your neck. Hold for 30 seconds, then slowly come out of the pose by bringing hands to hips and lifting up.',
+     ben:'Deeply opens the chest and hip flexors. Energising and uplifting. Counteracts the forward hunching of desk work.'},
+  ],breath:'Kapalabhati — Skull-Shining Breath: Sit tall with your spine straight. Take a deep inhale. Then begin a series of sharp, forceful exhales through the nose, about one per second, allowing the inhales to happen passively. The belly pumps inward with each exhale. Start with 30 rapid exhales, then take a long slow inhale and exhale to rest. Repeat for 3 rounds. This breath is energising and warming, and mirrors the building energy of your follicular phase.'},
+
+  ovulatory:{label:'Ovulatory',color:'#8FA15C',bg:'#F3F7EC',title:'Peak Energy & Expansive Flow',intro:'Ovulation is your peak energy window. You naturally feel more confident, social and strong. Use this time to explore challenging, expressive poses and push the boundaries of what you thought you could do.',poses:[
+    {name:'Vinyasa Flow Sequence',sub:'Continuous Dynamic Flow',dur:'20–30 minutes',type:'Dynamic',
+     inst:'Move through a continuous flow, linking each movement to a breath. Suggested sequence: begin in Mountain Pose, flow into Sun Salutation A twice, then Sun Salutation B twice. Then flow through: Warrior I, Warrior II, Reverse Warrior, Extended Side Angle, Triangle Pose on each side. Add Crow Pose attempt, Wheel Pose or Bridge Pose as a backbend. End with a seated twist and Savasana. Move at whatever pace feels right — the key is continuous, breath-led movement.',
+     ben:'Improves cardiovascular fitness. Builds full-body strength and flexibility. Highly expressive and empowering.'},
+    {name:'Natarajasana',sub:"Dancer's Pose",dur:'45 seconds each side',type:'Balance',
+     inst:"Stand on your right foot. Bend your left knee and bring your left foot toward your left buttock. Reach back with your left hand and hold your left inner ankle or foot. Stand tall and find your balance. Begin to kick your left foot back and up while simultaneously tipping your torso forward and extending your right arm forward at shoulder height. Aim to create a graceful arc with your body. Fix your gaze on a point on the floor in front of you to help balance. Hold for 45 seconds, then slowly come out and repeat on the other side.",
+     ben:'Improves balance, concentration and coordination. Opens the chest and hip flexors. Graceful and confidence-building.'},
+    {name:'Utthita Hasta Padangusthasana',sub:'Standing Hand to Big Toe',dur:'1 minute each side',type:'Balance',
+     inst:'Stand on your right foot. Bend your left knee and bring it toward your chest. Take hold of your left big toe with your left hand, or hold your left shin if the toe is not accessible. Slowly extend your left leg forward, straightening it as much as possible. Keep your standing leg strong and your spine tall. Fix your gaze ahead. If you feel steady, slowly open your left leg out to the left side. Hold for 1 minute then switch.',
+     ben:'Builds single-leg strength and balance. Stretches the hamstrings and opens the hips. Develops focus and mental steadiness.'},
+    {name:'Handstand Preparation',sub:'L-Shape Against Wall',dur:'3 rounds x 30 seconds',type:'Inversion',
+     inst:'Place your hands on the floor about 30cm from a wall, shoulder width apart. Walk your feet up the wall until your hips are directly above your hands and your body forms an L-shape. Press firmly through your hands and keep your arms straight. Hold for 30 seconds, breathing steadily. When comfortable, you can try lifting one leg at a time toward the ceiling. Rest between rounds. Never attempt to kick up into a full handstand without proper training.',
+     ben:'Builds significant upper body and core strength. Shifts perspective. Inversions improve lymphatic circulation and boost energy.'},
+    {name:'Urdhva Dhanurasana',sub:'Wheel Pose (Upward Bow)',dur:'30 seconds x 2 rounds',type:'Backbend',
+     inst:'Only attempt this pose when fully warmed up after at least 15 minutes of movement. Lie on your back with your knees bent and feet flat on the floor near your hips. Place your hands beside your head with fingers pointing toward your shoulders. Press into your hands and feet simultaneously and lift your hips. First rest on the crown of your head, checking your hand position. Then straighten your arms and lift fully. Keep your feet parallel and press your hips upward. Hold for 30 seconds, then tuck your chin and lower slowly. Rest between rounds.',
+     ben:'A powerful full-body backbend that opens the chest, strengthens the arms, legs and spine simultaneously. Highly energising and joyful.'},
+  ],breath:'Bhastrika — Bellows Breath: Sit tall. Breathe in and out rapidly through the nose with equal force on the inhale and exhale, at about one to two breath cycles per second. Let the belly expand with each inhale and contract firmly with each exhale. Start with 20 breaths, then take a long slow inhale, hold briefly and exhale slowly. Repeat for 3 rounds. This breath builds energy, heat and mental clarity — a perfect match for your ovulatory peak.'},
+
+  luteal:{label:'Luteal',color:'#6E5A9C',bg:'#F5F3FB',title:'Ground, Slow & Nourish',intro:'As progesterone rises in the luteal phase, your body and nervous system naturally begin to slow. Honour this by choosing grounding, inward-facing practices. These poses help manage PMS, reduce cortisol and prepare the body for the next cycle.',poses:[
+    {name:'Prasarita Padottanasana',sub:'Wide-Legged Forward Fold',dur:'2–3 minutes',type:'Grounding',
+     inst:'Step your feet wide apart — about one leg-length — with toes pointing forward and feet parallel. Place your hands on your hips. Inhale and lengthen your spine. Exhale and hinge forward from the hips, lowering your torso toward the floor. Place your hands on the floor beneath your shoulders, or hold your elbows if you can reach. Let your head hang completely heavy. Close your eyes. Breathe deeply and allow the pose to deepen with each exhale. Do not force — simply let gravity do the work.',
+     ben:'Calms the nervous system. Relieves PMS-related headaches by bringing blood to the head. Deeply grounding and introspective.'},
+    {name:'Paschimottanasana',sub:'Seated Forward Fold',dur:'3–5 minutes',type:'Grounding',
+     inst:'Sit on the floor with both legs extended straight in front of you. Flex your feet so your toes point toward the sky. Inhale and sit tall, lengthening your spine upward. On your exhale, hinge forward from your hips — not by rounding your back — and walk your hands forward along your legs toward your feet. Hold wherever you can — shins, ankles or feet. Rest your forehead on your legs or on a cushion placed on your legs. Close your eyes and breathe into the back of your body.',
+     ben:'Strongly calms the nervous system. Soothes anxiety and irritability. Stretches the entire back body from the heels to the neck.'},
+    {name:'Ananda Balasana',sub:'Happy Baby Pose',dur:'2–3 minutes',type:'Restorative',
+     inst:'Lie on your back. Draw both knees into your chest and hug them. Then open your knees wider than your torso and draw them toward your armpits. Reach your hands to grip the outer edges of your feet, or hold your ankles or shins if your feet are not reachable. Flex your feet so your soles face the ceiling. Gently pull your feet downward while pressing your tailbone into the floor. Rock slowly side to side if that feels good.',
+     ben:'Releases deep sacral tension. Calms the nervous system. Eases lower back pain and bloating. One of the most gentle and comforting poses.'},
+    {name:'Virasana with Pranayama',sub:"Hero's Pose with Alternate Nostril Breathing",dur:'5–8 minutes',type:'Grounding',
+     inst:"Kneel and sit between your heels. Place a folded blanket or block under your sitting bones if this is uncomfortable for your knees. Sit tall with your hands resting on your thighs. Close your eyes. Begin Nadi Shodhana breathing: bring your right hand to your face. Close your right nostril with your thumb. Inhale through your left nostril for 4 counts. Close both nostrils, hold for 4 counts. Open the right nostril, exhale for 6 counts. Inhale right for 4. Hold 4. Exhale left for 6. This is one round. Repeat slowly for 5 to 8 minutes.",
+     ben:'Deeply grounds the nervous system. Specifically reduces luteal phase anxiety, mood swings and emotional reactivity. The seated position improves posture and focus.'},
+    {name:'Yoga Nidra',sub:'Yogic Sleep — Body Scan',dur:'20 minutes',type:'Restorative',
+     inst:'Lie in Savasana with a blanket over you. Close your eyes and completely let go of any effort. Begin a slow body scan: bring your awareness to your right thumb, index finger, middle finger, ring finger, little finger, palm, back of the hand, wrist, forearm, elbow, upper arm, shoulder, armpit, right side of the chest, right side of the waist, right hip, right thigh, kneecap, calf, ankle, heel, sole of the foot, right big toe and remaining toes. Now repeat on the left side. Then scan up the back, the face, the crown of the head. Allow yourself to drift into a state between waking and sleeping.',
+     ben:'Clinically equivalent to 4 hours of sleep in terms of nervous system restoration. Dramatically lowers cortisol. Improves sleep quality in the pre-menstrual phase when sleep is often disrupted.'},
+  ],breath:'Box Breathing — 4-4-4-4: Sit or lie comfortably. Inhale slowly for 4 counts. Hold your breath for 4 counts. Exhale slowly for 4 counts. Hold empty for 4 counts. This is one round. Repeat for 5 to 10 minutes. Box breathing is used by military forces worldwide to manage stress response. It directly regulates cortisol and calms PMS anxiety, irritability and overwhelm.'},
 };
 
 function YogaPage({profile,setPage}){
@@ -568,7 +704,7 @@ function YogaPage({profile,setPage}){
   return(
     <div style={{maxWidth:1000,margin:'0 auto',padding:'32px 20px'}}>
       <BackBtn onClick={()=>setPage('home')}/>
-      <SectionHead title="Yoga & Movement" subtitle="Phase-specific routines with video guides and breathing exercises."/>
+      <SectionHead title="Yoga & Movement" subtitle="Phase-specific routines with detailed instructions and breathing exercises."/>
       <div style={{display:'flex',gap:8,marginBottom:24,flexWrap:'wrap'}}>
         {Object.entries(YOGA).map(([k,v])=>(
           <button key={k} onClick={()=>{setTab(k);setOpenPose(null)}} style={{padding:'9px 18px',borderRadius:12,fontWeight:700,fontSize:12,background:tab===k?v.color:'none',color:tab===k?'white':v.color,border:`2px solid ${v.color}`,cursor:'pointer',position:'relative'}}>
@@ -579,7 +715,7 @@ function YogaPage({profile,setPage}){
       <Card style={{marginBottom:22,background:data.bg,border:`1px solid ${data.color}30`}}>
         <h3 style={{fontFamily:'Playfair Display,serif',fontSize:20,color:data.color,margin:'0 0 8px'}}>{data.title}</h3>
         <p style={{fontSize:13,color:T.inkMid,lineHeight:1.65,margin:0}}>{data.intro}</p>
-        {tab===phase&&<div style={{marginTop:10,display:'inline-flex',alignItems:'center',gap:6,background:data.color+'18',borderRadius:20,padding:'4px 14px'}}><div style={{width:7,height:7,borderRadius:'50%',background:data.color}}/><span style={{fontSize:11,fontWeight:600,color:data.color}}>Your current phase</span></div>}
+        {tab===phase&&<div style={{marginTop:10,display:'inline-flex',alignItems:'center',gap:6,background:data.color+'18',borderRadius:20,padding:'4px 14px'}}><div style={{width:7,height:7,borderRadius:'50%',background:data.color}}/><span style={{fontSize:11,fontWeight:600,color:data.color}}>This is your current phase</span></div>}
       </Card>
       <div style={{display:'flex',flexDirection:'column',gap:14}}>
         {data.poses.map((pose,i)=>{
@@ -590,7 +726,10 @@ function YogaPage({profile,setPage}){
                 <div style={{flex:1}}>
                   <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap',marginBottom:6}}>
                     <div style={{width:28,height:28,borderRadius:'50%',background:data.color+'20',display:'flex',alignItems:'center',justifyContent:'center',color:data.color,fontWeight:800,fontSize:12,flexShrink:0}}>{i+1}</div>
-                    <div><h4 style={{fontFamily:'Playfair Display,serif',fontSize:17,color:T.ink,margin:0}}>{pose.name}</h4><div style={{fontSize:12,color:T.inkLight,fontStyle:'italic'}}>{pose.sub}</div></div>
+                    <div>
+                      <h4 style={{fontFamily:'Playfair Display,serif',fontSize:17,color:T.ink,margin:0}}>{pose.name}</h4>
+                      <div style={{fontSize:12,color:T.inkLight,fontStyle:'italic'}}>{pose.sub}</div>
+                    </div>
                   </div>
                   <div style={{display:'flex',gap:10,marginLeft:38,flexWrap:'wrap'}}>
                     <Badge label={`⏱ ${pose.dur}`} color={data.color} bg={data.bg}/>
@@ -601,19 +740,28 @@ function YogaPage({profile,setPage}){
               </div>
               {isOpen&&(
                 <div style={{marginTop:18,paddingTop:18,borderTop:`1px solid ${T.border}`}}>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:18}}>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
                     <div>
-                      <h5 style={{fontSize:11,fontWeight:700,color:data.color,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:8}}>Instructions</h5>
-                      <p style={{fontSize:13,color:T.inkMid,lineHeight:1.65,margin:'0 0 12px'}}>{pose.inst}</p>
-                      <div style={{background:data.bg,borderRadius:10,padding:'10px 12px'}}>
-                        <div style={{fontSize:10,fontWeight:700,color:data.color,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:3}}>Benefits</div>
-                        <p style={{fontSize:12,color:T.inkMid,margin:0,lineHeight:1.5}}>{pose.ben}</p>
+                      <h5 style={{fontSize:12,fontWeight:700,color:data.color,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:10}}>📋 How to do it</h5>
+                      <p style={{fontSize:14,color:T.inkMid,lineHeight:1.8,margin:'0 0 16px'}}>{pose.inst}</p>
+                      <div style={{background:data.bg,borderRadius:10,padding:'12px 14px',marginBottom:12}}>
+                        <div style={{fontSize:11,fontWeight:700,color:data.color,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>⏱ Duration</div>
+                        <p style={{fontSize:14,fontWeight:600,color:T.ink,margin:0}}>{pose.dur}</p>
+                      </div>
+                      <div style={{background:data.bg,borderRadius:10,padding:'12px 14px'}}>
+                        <div style={{fontSize:11,fontWeight:700,color:data.color,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>🏷 Type</div>
+                        <p style={{fontSize:13,color:T.inkMid,margin:0}}>{pose.type}</p>
                       </div>
                     </div>
                     <div>
-                      <h5 style={{fontSize:11,fontWeight:700,color:data.color,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:8}}>Video Guide</h5>
-                      <div style={{position:'relative',paddingBottom:'56.25%',height:0,borderRadius:12,overflow:'hidden'}}>
-                        <iframe src={`https://www.youtube.com/embed/${pose.yt}?rel=0&modestbranding=1`} title={pose.name} allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowFullScreen style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',border:'none',borderRadius:12}}/>
+                      <h5 style={{fontSize:12,fontWeight:700,color:data.color,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:10}}>💚 Benefits</h5>
+                      <p style={{fontSize:14,color:T.inkMid,lineHeight:1.7,margin:'0 0 20px'}}>{pose.ben}</p>
+                      <div style={{background:'#F8F8F8',borderRadius:12,padding:'16px',border:`1px dashed ${T.border}`}}>
+                        <p style={{fontSize:12,fontWeight:700,color:T.inkMid,margin:'0 0 8px'}}>🎥 Want to follow along with a video?</p>
+                        <p style={{fontSize:12,color:T.inkLight,margin:'0 0 10px',lineHeight:1.5}}>Search YouTube for a clear guided tutorial:</p>
+                        <div style={{background:'white',borderRadius:8,padding:'10px 12px',fontSize:13,fontWeight:600,color:data.color,border:`1px solid ${T.border}`,wordBreak:'break-word'}}>
+                          "{pose.name} {pose.sub} yoga for beginners"
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -624,8 +772,8 @@ function YogaPage({profile,setPage}){
         })}
       </div>
       <Card style={{marginTop:22,background:data.bg}}>
-        <h3 style={{fontFamily:'Playfair Display,serif',fontSize:17,color:data.color,margin:'0 0 10px'}}>🌬 Pranayama for the {data.label} Phase</h3>
-        <p style={{fontSize:13,color:T.inkMid,lineHeight:1.65,margin:0}}>{data.breath}</p>
+        <h3 style={{fontFamily:'Playfair Display,serif',fontSize:17,color:data.color,margin:'0 0 12px'}}>🌬 Pranayama for the {data.label} Phase</h3>
+        <p style={{fontSize:14,color:T.inkMid,lineHeight:1.75,margin:0}}>{data.breath}</p>
       </Card>
     </div>
   );
@@ -633,24 +781,24 @@ function YogaPage({profile,setPage}){
 
 /* ---- AYURVEDA ---- */
 const TEAS=[
-  {name:'Ginger & Cinnamon Cramp Tea',phase:'menstrual',ing:'1 tsp grated ginger · 1 cinnamon stick · 1 tsp honey · 1 cup water',brew:'Simmer ginger and cinnamon 5–7 min. Strain, cool, stir in honey.',ben:'Ginger inhibits prostaglandins — clinically shown to reduce cramp intensity.',emoji:'🫚'},
-  {name:'Raspberry Leaf & Rose Tea',phase:'menstrual',ing:'1 tbsp dried raspberry leaf · 1 tsp dried rose petals · 1 cup boiling water',brew:'Steep raspberry leaf 10 min, add rose petals last 2 min. Strain warm.',ben:"Raspberry leaf tones the uterine muscle. Rose is cooling and emotionally soothing.",emoji:'🌹'},
-  {name:'Spearmint & Licorice Tea',phase:'follicular',ing:'1 tbsp dried spearmint · 1 piece dried licorice root · 1 cup water',brew:'Steep spearmint and licorice root in hot water 8 minutes. Strain.',ben:'Spearmint clinically shown to lower excess androgens — beneficial for PCOS.',emoji:'🌿'},
-  {name:'Brahmi Brain Tonic',phase:'follicular',ing:'½ tsp Brahmi powder · 1 cup warm milk · pinch of saffron · honey',brew:'Warm milk, whisk in Brahmi and saffron. Sweeten with honey.',ben:'Brahmi reduces anxiety and supports memory. Saffron is a natural mood-lifter.',emoji:'🧠'},
-  {name:'Shatavari Tonic',phase:'any',ing:'1 tsp Shatavari powder · 1 cup warm milk · ¼ tsp cardamom · honey',brew:'Whisk Shatavari into warm milk. Add cardamom and honey. Take morning or before sleep.',ben:'Premier Ayurvedic herb for women\'s hormonal health — nourishes uterus and regulates cycles.',emoji:'✨'},
+  {name:'Ginger & Cinnamon Cramp Tea',phase:'menstrual',ing:'1 tsp fresh grated ginger · 1 cinnamon stick · 1 tsp honey · 1 cup water',brew:'Simmer ginger and cinnamon in water for 5–7 min. Strain, cool slightly, stir in honey.',ben:'Ginger is a natural prostaglandin inhibitor — clinically shown to reduce menstrual cramp intensity. Cinnamon regulates blood sugar and eases nausea.',emoji:'🫚'},
+  {name:'Raspberry Leaf & Rose Tea',phase:'menstrual',ing:'1 tbsp dried raspberry leaf · 1 tsp dried rose petals · 1 cup boiling water',brew:'Steep raspberry leaf for 10 minutes, then add rose petals for the final 2 minutes. Strain and sip warm.',ben:"Raspberry leaf tones the uterine muscle. Rose is cooling and emotionally soothing. A classic women's tonic.",emoji:'🌹'},
+  {name:'Spearmint & Licorice Tea',phase:'follicular',ing:'1 tbsp dried spearmint · 1 small piece dried licorice root · 1 cup water',brew:'Steep spearmint and licorice root in hot water for 8 minutes. Strain.',ben:'Spearmint has been clinically shown to lower excess androgens — beneficial for PCOS. Licorice supports adrenal and hormonal balance.',emoji:'🌿'},
+  {name:'Brahmi Brain Tonic',phase:'follicular',ing:'½ tsp Brahmi powder · 1 cup warm milk · pinch of saffron · honey',brew:'Warm milk, whisk in Brahmi and saffron. Sweeten with honey. Take in the morning.',ben:'Brahmi reduces anxiety and supports memory. Saffron is a natural mood-lifter with clinical evidence for mild depression.',emoji:'🧠'},
+  {name:'Shatavari Tonic',phase:'any',ing:'1 tsp Shatavari powder · 1 cup warm milk · ¼ tsp cardamom · honey',brew:'Whisk Shatavari into warm milk. Add cardamom and honey. Best taken morning or before sleep.',ben:"Premier Ayurvedic herb for women's reproductive health. Nourishes the uterus, regulates cycles, eases menopause symptoms.",emoji:'✨'},
   {name:'Ashwagandha Adaptogen Milk',phase:'luteal',ing:'½ tsp ashwagandha powder · 1 cup warm milk · pinch cardamom · honey',brew:'Warm milk, whisk in ashwagandha and cardamom. Sweeten with honey.',ben:'Reduces cortisol, supports progesterone and eases PMS anxiety and fatigue.',emoji:'🌙'},
   {name:'Fennel Bloat Relief Tea',phase:'luteal',ing:'1 tsp fennel seeds · 1 cup boiling water · fresh ginger',brew:'Crush fennel seeds. Add with ginger to boiling water. Steep 8 min, strain.',ben:'Antispasmodic that eases luteal-phase bloating and digestive discomfort.',emoji:'🫧'},
   {name:'Triphala Detox Drink',phase:'any',ing:'½ tsp Triphala powder · 1 cup warm water · 1 tsp honey',brew:'Stir Triphala into warm water. Add honey. Drink on empty stomach or before bed.',ben:'Supports gut health and gentle detoxification — foundational for hormonal balance.',emoji:'🪴'},
 ];
 const SEEDS=[
-  {name:'Follicular & Ovulatory (Days 1–14)',seeds:['Flaxseeds — 1 tbsp ground daily','Pumpkin seeds — 1 tbsp daily'],why:'Flaxseeds contain lignans that modulate oestrogen. Pumpkin seeds are rich in zinc, supporting progesterone production.',how:'Grind flaxseeds fresh daily. Add both to smoothies, yogurt, oatmeal or salads.',emoji:'🌱',phases:['follicular','ovulatory']},
-  {name:'Luteal & Menstrual (Days 15–28)',seeds:['Sesame seeds — 1 tbsp daily','Sunflower seeds — 1 tbsp daily'],why:'Sesamin in sesame helps regulate oestrogen. Sunflower seeds are rich in Vitamin E and selenium, supporting progesterone.',how:'Toast lightly or use raw. Sprinkle on dal, salads, or stir into nut butter.',emoji:'🌻',phases:['luteal','menstrual']},
+  {name:'Follicular & Ovulatory — Days 1 to 14',seeds:['Flaxseeds — 1 tbsp ground daily','Pumpkin seeds — 1 tbsp daily'],why:'Flaxseeds contain lignans that modulate oestrogen. Pumpkin seeds are rich in zinc, supporting progesterone production in the second half of the cycle.',how:'Grind flaxseeds fresh daily for best results. Add both seeds to smoothies, yogurt, oatmeal or salads.',emoji:'🌱',phases:['follicular','ovulatory']},
+  {name:'Luteal & Menstrual — Days 15 to 28',seeds:['Sesame seeds — 1 tbsp daily','Sunflower seeds — 1 tbsp daily'],why:'Sesamin in sesame helps regulate oestrogen. Sunflower seeds are rich in Vitamin E and selenium, supporting progesterone and reducing inflammation.',how:'Toast lightly or use raw. Sprinkle on dal, salads, or stir into nut butter.',emoji:'🌻',phases:['luteal','menstrual']},
 ];
 const RITUALS=[
-  {name:'Abhyanga (Self-Massage)',desc:'Warm sesame or coconut oil and gently massage your entire body before bathing — long strokes on limbs, circular on joints. Especially grounding during menstrual and luteal phases.',ben:'Calms the nervous system, improves circulation, reduces cortisol.'},
-  {name:'Nasya (Nasal Oiling)',desc:'Apply 2–3 drops of warm sesame oil inside each nostril in the morning. Breathe gently through each nostril.',ben:'Clears energy channels, reduces headaches, supports hormonal communication pathways.'},
-  {name:'Tongue Scraping & Oil Pulling',desc:'Each morning before eating: scrape tongue 7 times with a copper scraper, then swish 1 tbsp sesame or coconut oil for 10–15 minutes. Spit into a bin.',ben:'Removes toxins, supports gut-hormone axis, improves oral and digestive health.'},
-  {name:'Yoni Steam (Herbal Steam)',desc:'After your period ends: bowl of warm water with rose petals, lavender and neem. Sit above the steam covered for 10–15 minutes. Never during active menstruation.',ben:'Supports uterine health, increases circulation to the pelvis.'},
+  {name:'Abhyanga — Self-Massage',desc:'Warm sesame or coconut oil and gently massage your entire body before bathing — long strokes on limbs, circular motions on joints. Spend extra time on the abdomen. Especially grounding during menstrual and luteal phases.',ben:'Calms the nervous system, improves circulation, reduces cortisol and deeply nourishes the skin.'},
+  {name:'Nasya — Nasal Oiling',desc:'Apply 2–3 drops of warm sesame oil or Anu taila inside each nostril in the morning using a clean finger or dropper. Breathe gently through each nostril.',ben:'Clears the energy channels (nadis), reduces headaches, and supports hormonal communication pathways through the brain.'},
+  {name:'Tongue Scraping & Oil Pulling',desc:'Each morning before eating or drinking: scrape your tongue 7 times with a copper scraper, removing the white coating. Then swish 1 tablespoon of sesame or coconut oil in your mouth for 10 to 15 minutes. Spit into a bin — not the sink.',ben:'Removes ama (toxins) accumulated overnight, supports the gut-hormone axis and improves oral and digestive health.'},
+  {name:'Yoni Steam — Herbal Pelvic Steam',desc:'Only after your period has completely finished: prepare a bowl of warm (not boiling) water with rose petals, lavender and neem leaves. Sit above the steam, covered with a blanket, for 10 to 15 minutes. Never use this during active menstruation or pregnancy.',ben:'Supports uterine health, reduces fibroids, eases endometriosis symptoms and increases circulation to the pelvis.'},
 ];
 
 function AyurvedaPage({profile,setPage}){
@@ -685,7 +833,7 @@ function AyurvedaPage({profile,setPage}){
       )}
       {tab==='seeds'&&(
         <div>
-          <Card style={{marginBottom:20,background:T.sageLight}}><h3 style={{fontFamily:'Playfair Display,serif',fontSize:18,color:'#3A6B50',margin:'0 0 8px'}}>What is Seed Cycling?</h3><p style={{fontSize:13,color:T.inkMid,lineHeight:1.65,margin:0}}>Seed cycling uses specific seeds at specific cycle phases to gently support hormonal balance through unique lignans, fatty acids and micronutrients. Best practised consistently for 3 months.</p></Card>
+          <Card style={{marginBottom:20,background:T.sageLight}}><h3 style={{fontFamily:'Playfair Display,serif',fontSize:18,color:'#3A6B50',margin:'0 0 8px'}}>What is Seed Cycling?</h3><p style={{fontSize:13,color:T.inkMid,lineHeight:1.65,margin:0}}>Seed cycling is a nutritional therapy practice that uses specific seeds at specific phases of the menstrual cycle to gently support hormonal balance. Each seed contains unique lignans, fatty acids and micronutrients that modulate oestrogen and progesterone. Best practised consistently for 3 months to see full results.</p></Card>
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:20}}>
             {SEEDS.map(s=>{const isActive=phase&&s.phases.includes(phase);return(
               <Card key={s.name} style={{border:isActive?`2px solid ${T.sage}`:`1px solid ${T.border}`,background:isActive?T.sageLight:T.white}}>
@@ -708,7 +856,7 @@ function AyurvedaPage({profile,setPage}){
                 <span style={{color:T.sage,fontSize:16}}>{isOpen?'▲':'▼'}</span>
               </div>
               {isOpen&&<div style={{marginTop:14,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
-                <p style={{fontSize:13,color:T.inkMid,lineHeight:1.65,margin:'0 0 12px'}}>{r.desc}</p>
+                <p style={{fontSize:14,color:T.inkMid,lineHeight:1.7,margin:'0 0 12px'}}>{r.desc}</p>
                 <div style={{background:T.sageLight,borderRadius:10,padding:'10px 14px'}}><span style={{fontWeight:700,color:T.sage,fontSize:13}}>Benefits: </span><span style={{fontSize:13,color:T.inkMid}}>{r.ben}</span></div>
               </div>}
             </Card>
@@ -721,10 +869,10 @@ function AyurvedaPage({profile,setPage}){
 
 /* ---- DISORDERS ---- */
 const DISORDERS=[
-  {id:'pcos',name:'PCOS',full:'Polycystic Ovary Syndrome',emoji:'🔵',prev:'Affects ~1 in 10 women of reproductive age',syms:['Irregular or absent periods','Excess androgen — acne, facial hair, hair thinning','Weight gain around the waist','Difficulty conceiving','Multiple small cysts on ovaries','Fatigue and mood changes'],causes:'Linked to insulin resistance, elevated androgens and inflammation. Has a genetic component but strongly influenced by lifestyle.',nutrition:['Follow a low-glycaemic diet: whole grains, legumes, non-starchy vegetables.','Reduce refined sugars and white flour.','Add anti-inflammatory foods: turmeric, omega-3 fish, berries, leafy greens.','Spearmint tea (2 cups/day) — clinically shown to lower androgens.','Myo-inositol (2–4 g/day) — well-researched for insulin sensitivity in PCOS.'],exercise:'150 min/week moderate aerobic activity. Add 2 strength sessions. Exercise is as effective as medication for insulin sensitivity.',ayurveda:'Spearmint tea, Shatavari, Triphala and Ashwagandha are primary supports. Kapha-balancing diet (warm, light, spiced foods). Yoga Nidra and Pranayama reduce cortisol.',doctor:'Absent periods 3+ months, difficulty conceiving after 6–12 months, severe acne or hair loss.'},
-  {id:'endo',name:'Endometriosis',full:'Endometriosis',emoji:'🔴',prev:'Affects ~1 in 10 women — average 7–10 years to diagnosis',syms:['Severe menstrual cramps','Chronic pelvic pain outside of period','Pain during or after intercourse','Pain with bowel movements or urination','Heavy or irregular periods','Fatigue','Infertility in some cases'],causes:'Endometrial-like tissue grows outside the uterus, causing inflammation, adhesions and scar tissue.',nutrition:['Anti-inflammatory diet: omega-3s, turmeric, ginger, leafy greens.','Reduce red meat, trans fats, alcohol and caffeine.','Increase dietary fibre to support oestrogen excretion.','Magnesium glycinate (200–400 mg/day) may help with pain — discuss with doctor.'],exercise:'Gentle, anti-inflammatory movement: yoga, swimming, walking. Avoid high-impact during a flare. Pelvic floor physiotherapy can be transformative.',ayurveda:'Yoni steam after menstruation, Triphala, Shatavari and warm castor oil packs on the lower abdomen (not during period).',doctor:'Any pelvic pain disrupting your life — especially pain during sex. Requires specialist referral for definitive diagnosis.'},
-  {id:'pmdd',name:'PMDD',full:'Premenstrual Dysphoric Disorder',emoji:'🟣',prev:'Affects ~3–8% of menstruating women — often misdiagnosed',syms:['Severe mood swings or irritability 1–2 weeks before period','Marked depression, hopelessness or anxiety','Difficulty concentrating','Fatigue and low energy','Changes in appetite or sleep','Bloating, breast tenderness, headaches','Symptoms resolve within days of period starting'],causes:'Abnormal neurological sensitivity to normal luteal-phase hormone fluctuations, particularly affecting serotonin systems.',nutrition:['Calcium-rich foods: dairy, fortified plant milk, leafy greens.','Vitamin B6 (50–100 mg/day) supports serotonin.','Magnesium (300–400 mg/day) in the luteal phase.','Reduce caffeine, alcohol and refined sugar 2 weeks before period.'],exercise:'Aerobic exercise 3–5 times weekly is as effective as antidepressants for mild-moderate PMDD. Walking, yoga and dancing are excellent.',ayurveda:'Ashwagandha, Brahmi, Shatavari and Yoga Nidra are key. Daily Abhyanga (self-massage) is deeply calming.',doctor:'PMDD is a diagnosable condition. Seek help if symptoms significantly disrupt work or relationships.'},
-  {id:'menopause',name:'Menopause',full:'Menopause & Post-Menopause',emoji:'🌸',prev:'Natural end of menstruation, typically 45–55. Perimenopause may start in late 30s.',syms:['Hot flushes and night sweats','Irregular periods (perimenopause)','Vaginal dryness','Sleep disturbances','Mood changes, anxiety or brain fog','Reduced libido','Joint pain and muscle aches','Increased cardiovascular and bone-loss risk'],causes:'Natural decline of ovarian oestrogen and progesterone production.',nutrition:['Calcium 1,200 mg/day + Vitamin D 1,000–2,000 IU/day for bone density.','Phytoestrogen-rich foods: soy, flaxseed, lentils — may ease hot flushes.','Increase omega-3s for cardiovascular and joint health.','Protein 1.2–1.6 g/kg body weight to preserve muscle mass.'],exercise:'Weight-bearing exercise (walking, weight training) is the most evidence-based strategy to maintain bone density. Aim for 2 strength sessions weekly.',ayurveda:'Shatavari (2 g/day in warm milk) is the premier herb for menopause. Ashwagandha for energy. Cooling practices (Sheetali pranayama) help manage hot flushes.',doctor:'Early menopause under 45, severe hot flushes, new-onset depression, bone density concerns, or any postmenopausal bleeding.'},
+  {id:'pcos',name:'PCOS',full:'Polycystic Ovary Syndrome',emoji:'🔵',prev:'Affects ~1 in 10 women of reproductive age',syms:['Irregular or absent periods','Excess androgen — acne, facial hair, hair thinning','Weight gain around the waist','Difficulty conceiving','Multiple small cysts on ovaries','Fatigue and mood changes'],causes:'Linked to insulin resistance, elevated androgens and inflammation. Has a genetic component but is strongly influenced by lifestyle.',nutrition:['Follow a low-glycaemic diet: whole grains, legumes, non-starchy vegetables.','Reduce refined sugars and white flour — these spike insulin.','Add anti-inflammatory foods: turmeric, omega-3 fish, berries, leafy greens.','Spearmint tea (2 cups/day) — clinically shown to lower androgens.','Myo-inositol (2–4 g/day) — well-researched supplement for insulin sensitivity in PCOS.'],exercise:'150 min/week of moderate aerobic activity. Add 2 strength sessions. Exercise is as effective as medication for improving insulin sensitivity in PCOS.',ayurveda:'Spearmint tea, Shatavari, Triphala and Ashwagandha are primary supports. Follow a Kapha-balancing diet: warm, light, spiced foods. Yoga Nidra and Pranayama reduce cortisol significantly.',doctor:'Absent periods for 3+ months, difficulty conceiving after 6–12 months, severe acne or hair loss, or any suspicion of sleep apnea.'},
+  {id:'endo',name:'Endometriosis',full:'Endometriosis',emoji:'🔴',prev:'Affects ~1 in 10 women — average 7–10 years to diagnosis',syms:['Severe menstrual cramps','Chronic pelvic pain outside of period','Pain during or after intercourse','Pain with bowel movements or urination','Heavy or irregular periods','Fatigue','Infertility in some cases'],causes:'Endometrial-like tissue grows outside the uterus, causing inflammation, adhesions and scar tissue. The exact cause is debated.',nutrition:['Anti-inflammatory diet: omega-3 fatty acids, turmeric, ginger, leafy greens.','Reduce red meat, trans fats, alcohol and caffeine — all increase inflammation.','Increase dietary fibre to support oestrogen excretion through the gut.','Magnesium glycinate (200–400 mg/day) may help with pain — always discuss with your doctor.'],exercise:'Gentle, anti-inflammatory movement: yoga, swimming, walking. Avoid high-impact exercise during a flare. Pelvic floor physiotherapy can be transformative for pain management.',ayurveda:'Yoni steam after menstruation, Triphala, Shatavari and warm castor oil packs on the lower abdomen (never during period) are traditional supports.',doctor:'Any pelvic pain that disrupts your life — especially pain during sex. Endometriosis requires specialist referral. Definitive diagnosis is by laparoscopy.'},
+  {id:'pmdd',name:'PMDD',full:'Premenstrual Dysphoric Disorder',emoji:'🟣',prev:'Affects ~3–8% of menstruating women — often misdiagnosed as depression',syms:['Severe mood swings or anger 1–2 weeks before period','Marked depression, hopelessness or anxiety','Difficulty concentrating','Fatigue and low energy','Changes in appetite or sleep','Bloating, breast tenderness, headaches','Symptoms resolve within days of period starting'],causes:'Abnormal neurological sensitivity to normal luteal-phase hormone fluctuations, particularly affecting serotonin systems. This is not simply "bad PMS".',nutrition:['Calcium-rich foods: dairy, fortified plant milk, leafy greens — calcium is clinically shown to reduce PMDD symptoms.','Vitamin B6 (50–100 mg/day) supports serotonin synthesis.','Magnesium (300–400 mg/day) in the luteal phase reduces both mood and physical symptoms.','Reduce caffeine, alcohol and refined sugar in the 2 weeks before your period.'],exercise:'Aerobic exercise 3–5 times weekly is as effective as antidepressants for mild-moderate PMDD by boosting serotonin and endorphins. Walking, yoga and dancing are excellent choices.',ayurveda:'Ashwagandha, Brahmi, Shatavari and Yoga Nidra are the key supports. Daily Abhyanga (self-massage) is deeply calming for the nervous system sensitivity central to PMDD.',doctor:'PMDD is a diagnosable medical condition. Seek help if symptoms significantly disrupt work, relationships or daily life. SSRIs, hormonal options and CBT are all evidence-based treatments.'},
+  {id:'menopause',name:'Menopause',full:'Menopause & Post-Menopause',emoji:'🌸',prev:'Natural end of menstruation, typically 45–55. Perimenopause may start in the late 30s.',syms:['Hot flushes and night sweats','Irregular periods (perimenopause)','Vaginal dryness','Sleep disturbances','Mood changes, anxiety or brain fog','Reduced libido','Joint pain and muscle aches','Increased cardiovascular and bone-loss risk'],causes:'Natural decline of ovarian oestrogen and progesterone production. Premature menopause (before 40) may be autoimmune, surgical or idiopathic.',nutrition:['Calcium 1,200 mg/day + Vitamin D 1,000–2,000 IU/day to protect bone density — essential.','Phytoestrogen-rich foods: soy, flaxseed, lentils — may ease hot flushes.','Increase omega-3s for cardiovascular and joint health.','Protein: 1.2–1.6 g/kg body weight to preserve muscle mass.','Magnesium and B vitamins for sleep and mood support.'],exercise:'Weight-bearing exercise (walking, weight training) is the most evidence-based strategy to maintain bone density. Aim for 2 strength sessions weekly. Yoga reduces hot-flush frequency significantly.',ayurveda:'Shatavari (2 g/day in warm milk) is the premier herb for menopause. Ashwagandha for energy and mood. Cooling practices — Sheetali pranayama, moon salutations — help manage hot flushes.',doctor:'Early menopause under 45, severe hot flushes disrupting sleep, new-onset depression, bone density concerns, or any postmenopausal bleeding — all warrant medical assessment.'},
 ];
 
 function DisordersPage({setPage}){
@@ -744,8 +892,7 @@ function DisordersPage({setPage}){
               <div style={{fontSize:32,marginBottom:10}}>{d.emoji}</div>
               <h3 style={{fontFamily:'Playfair Display,serif',fontSize:19,color:T.ink,margin:'0 0 4px'}}>{d.full}</h3>
               <div style={{fontSize:11,color:T.inkLight,marginBottom:10,fontStyle:'italic'}}>{d.prev}</div>
-              <div style={{fontSize:12,color:T.inkMid,lineHeight:1.5,marginBottom:12}}>{d.syms.slice(0,3).map(s=>`· ${s}`).join('\n')}</div>
-              <div style={{fontSize:12,color:T.purple,fontWeight:600}}>Read full guide →</div>
+              <div style={{fontSize:13,color:T.purple,fontWeight:600,marginTop:10}}>Read full guide →</div>
             </button>
           ))}
         </div>
@@ -764,11 +911,11 @@ function DisordersPage({setPage}){
             {secTab==='nutrition'&&<div><h3 style={{fontFamily:'Playfair Display,serif',fontSize:19,color:T.ink,margin:'0 0 14px'}}>Nutrition Guidance</h3>{sel.nutrition.map((n,i)=><div key={i} style={{display:'flex',gap:10,padding:'11px 14px',background:T.roseLight,borderRadius:10,marginBottom:8}}><span style={{color:T.rose,fontWeight:800,flexShrink:0}}>{i+1}.</span><span style={{fontSize:13,color:T.inkMid,lineHeight:1.55}}>{n}</span></div>)}</div>}
             {secTab==='exercise'&&<div><h3 style={{fontFamily:'Playfair Display,serif',fontSize:19,color:T.ink,margin:'0 0 12px'}}>Movement & Exercise</h3><p style={{fontSize:14,color:T.inkMid,lineHeight:1.7,margin:0}}>{sel.exercise}</p></div>}
             {secTab==='ayurveda'&&<div><h3 style={{fontFamily:'Playfair Display,serif',fontSize:19,color:T.ink,margin:'0 0 12px'}}>Ayurvedic Approach</h3><p style={{fontSize:14,color:T.inkMid,lineHeight:1.7,margin:0}}>{sel.ayurveda}</p></div>}
-            {secTab==='doctor'&&<div><div style={{display:'flex',gap:10,padding:'12px 16px',background:'#FFF3F5',borderRadius:12,border:`1.5px solid ${T.rose}30`,marginBottom:14}}><span style={{fontSize:18}}>⚕️</span><p style={{fontSize:13,color:T.inkMid,margin:0,lineHeight:1.65}}><strong style={{color:T.rose}}>Always consult a qualified healthcare provider.</strong> The information below is educational only.</p></div><h3 style={{fontFamily:'Playfair Display,serif',fontSize:19,color:T.ink,margin:'0 0 12px'}}>When to Seek Medical Advice</h3><p style={{fontSize:14,color:T.inkMid,lineHeight:1.7,margin:0}}>{sel.doctor}</p></div>}
+            {secTab==='doctor'&&<div><div style={{display:'flex',gap:10,padding:'12px 16px',background:'#FFF3F5',borderRadius:12,border:`1.5px solid ${T.rose}30`,marginBottom:14}}><span style={{fontSize:18}}>⚕️</span><p style={{fontSize:13,color:T.inkMid,margin:0,lineHeight:1.65}}><strong style={{color:T.rose}}>Always consult a qualified healthcare provider.</strong> The information below is educational only and not a substitute for medical advice.</p></div><h3 style={{fontFamily:'Playfair Display,serif',fontSize:19,color:T.ink,margin:'0 0 12px'}}>When to Seek Medical Advice</h3><p style={{fontSize:14,color:T.inkMid,lineHeight:1.7,margin:0}}>{sel.doctor}</p></div>}
           </Card>
         </div>
       )}
-      <div style={{marginTop:28,padding:'14px 18px',background:T.goldLight,borderRadius:12,fontSize:11,color:T.inkLight,lineHeight:1.6}}><strong>Medical disclaimer:</strong> NariSync provides health information for educational purposes only. Always consult a qualified healthcare professional for personal medical advice.</div>
+      <div style={{marginTop:28,padding:'14px 18px',background:T.goldLight,borderRadius:12,fontSize:11,color:T.inkLight,lineHeight:1.6}}><strong>Medical disclaimer:</strong> NariSync provides health information for educational purposes only. It is not intended to diagnose, treat, cure or prevent any condition. Always consult a qualified healthcare professional for personal medical advice.</div>
     </div>
   );
 }
@@ -782,7 +929,7 @@ function SettingsPage({profile,setProfile,setPage}){
   function save(){setProfile({...form});setSaved(true);setTimeout(()=>setSaved(false),2200);}
   const info=getCycleInfo(form.lastPeriod,+form.cycleLength,todayISO());
   const len=+form.cycleLength||28;
-  const{me,fe,oe}=info.len?{me:info.me,fe:info.fe,oe:info.oe}:phaseBounds(len);
+  const{me,fe,oe}=info.me!=null?info:{...phaseBounds(len)};
   const phaseBar=[{n:'Menstrual',s:1,e:me,c:T.rose},{n:'Follicular',s:me+1,e:fe,c:T.gold},{n:'Ovulatory',s:fe+1,e:oe,c:T.sage},{n:'Luteal',s:oe+1,e:len,c:T.purple}];
   return(
     <div style={{maxWidth:840,margin:'0 auto',padding:'32px 20px'}}>
@@ -858,9 +1005,9 @@ function Footer(){
 /* ---- ROOT APP ---- */
 const DEFAULT={name:'',age:'',weight:'',height:'',waist:'',hip:'',lastPeriod:'',cycleLength:'28'};
 function App(){
-  const[page,setPage]=useLS('cs_page','home');
-  const[profile,setProfile]=useLS('cs_profile',DEFAULT);
-  const[logs,setLogs]=useLS('cs_logs',{});
+  const[page,setPage]=useLS('ns_page','home');
+  const[profile,setProfile]=useLS('ns_profile',DEFAULT);
+  const[logs,setLogs]=useLS('ns_logs',{});
   const pages={
     home:<HomePage profile={profile} logs={logs} setPage={setPage}/>,
     tracker:<TrackerPage profile={profile} logs={logs} setLogs={setLogs} setPage={setPage}/>,
@@ -873,14 +1020,6 @@ function App(){
   };
   return(
     <div>
-      {!profile.lastPeriod&&page==='home'&&(
-        <div style={{position:'fixed',bottom:20,right:20,zIndex:200,background:'white',border:`1.5px solid ${T.border}`,borderRadius:14,padding:'14px 18px',boxShadow:`0 8px 32px ${T.shadowMd}`,maxWidth:260}}>
-          <div style={{fontSize:18,marginBottom:5}}>👋</div>
-          <div style={{fontSize:13,fontWeight:600,color:T.ink,marginBottom:4}}>Set up your profile</div>
-          <div style={{fontSize:11,color:T.inkLight,marginBottom:10}}>Add your cycle date to unlock personalised recommendations.</div>
-          <button onClick={()=>setPage('settings')} style={{width:'100%',padding:8,background:T.rose,color:'white',border:'none',borderRadius:8,fontWeight:600,fontSize:12,cursor:'pointer'}}>Set up Profile</button>
-        </div>
-      )}
       <Navbar page={page} setPage={setPage} profile={profile}/>
       <main style={{minHeight:'calc(100vh - 62px - 160px)'}}>{pages[page]||pages['home']}</main>
       <Footer/>
@@ -891,7 +1030,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 <script>
 if('serviceWorker' in navigator){
-  window.addEventListener('load', () => {
+  window.addEventListener('load',()=>{
     navigator.serviceWorker.register('/sw.js');
   });
 }
